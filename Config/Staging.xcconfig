@@ -1,0 +1,9 @@
+#include "Shared.xcconfig"
+
+// "//" starts a comment in this file format, so write URLs as https:/$()/host
+
+APP_ENVIRONMENT = staging
+APP_DISPLAY_NAME = Crossdrive Staging
+BUNDLE_ID_SUFFIX = .staging
+API_BASE_URL = https:/$()/api.staging.example.com
+DEEP_LINK_SCHEME = crossdrive-staging

@@ -1,0 +1,21 @@
+# Every merge request and the default branch: secret scan, lint, build and
+# unit tests, the same as scripts/check.sh runs locally and before a push.
+#
+# Needs a macOS runner tagged "macos" with Xcode, SwiftLint and SwiftFormat,
+# and the package variables described in scripts/fetch-packages.sh.
+# Signing, archiving and distribution are added per project.
+
+stages:
+  - check
+
+check:
+  stage: check
+  tags:
+    - macos
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - scripts/fetch-packages.sh
+    - swiftformat --lint .
+    - scripts/check.sh

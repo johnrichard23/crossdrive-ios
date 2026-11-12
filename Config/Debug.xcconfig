@@ -1,0 +1,9 @@
+#include "Shared.xcconfig"
+
+// "//" starts a comment in this file format, so write URLs as https:/$()/host
+
+APP_ENVIRONMENT = debug
+APP_DISPLAY_NAME = Crossdrive Debug
+BUNDLE_ID_SUFFIX = .debug
+API_BASE_URL = https:/$()/api.dev.example.com
+DEEP_LINK_SCHEME = crossdrive-debug

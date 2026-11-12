@@ -1,0 +1,67 @@
+# Run in CI and locally as: swiftlint lint --strict
+
+included:
+  - Crossdrive
+  - CrossdriveTests
+
+excluded:
+  - Crossdrive/Resources
+
+disabled_rules:
+  - trailing_comma
+
+opt_in_rules:
+  - empty_count
+  - closure_spacing
+  - contains_over_first_not_nil
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - missing_docs
+  - overridden_super_call
+  - unneeded_parentheses_in_closure_argument
+
+line_length:
+  warning: 120
+  error: 200
+
+type_body_length:
+  warning: 300
+  error: 500
+
+file_length:
+  warning: 500
+  error: 1000
+
+function_body_length:
+  warning: 50
+  error: 100
+
+custom_rules:
+  no_print:
+    name: "No print"
+    regex: '\b(print|debugPrint|NSLog)\('
+    match_kinds: [identifier]
+    message: "Use AppLog. print can leak data and is not filterable."
+    severity: error
+  no_trust_override:
+    name: "No server-trust override"
+    regex: 'SecTrustSetExceptions|URLCredential\(trust:'
+    message: "Never bypass certificate checks, not even under #if DEBUG."
+    severity: error
+  no_hex_color_in_features:
+    name: "No hard-coded colour"
+    included: "Crossdrive/Features/.*\\.swift"
+    regex: 'Color\((hex:|red:|"|\.sRGB)|UIColor\((red:|white:|named:)|#colorLiteral'
+    message: "Colours come from the theme (@Environment(\\.theme))."
+    severity: error
+  no_fixed_font_in_features:
+    name: "No fixed font"
+    included: "Crossdrive/Features/.*\\.swift"
+    regex: '\.font\(\.system\(size:'
+    message: "Use .textRole(...) so text follows the theme and Dynamic Type."
+    severity: error
+  no_secret_in_user_defaults:
+    name: "No secrets in UserDefaults"
+    regex: 'forKey:\s*"[^"]*(?i:token|password|secret|credential)[^"]*"'
+    message: "Tokens and passwords go in the Keychain (SecretStore), never UserDefaults."
+    severity: error

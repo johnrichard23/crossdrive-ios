@@ -1,0 +1,6 @@
+--swiftversion 6.0
+--wrap-arguments before-first
+--wrap-parameters before-first
+--wrap-collections before-first
+--maxwidth 100
+--exclude .build,DerivedData

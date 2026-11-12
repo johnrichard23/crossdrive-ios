@@ -1,0 +1,8 @@
+#!/bin/bash
+# Formats staged Swift files. Does nothing on a machine without the tools,
+# so it never blocks a teammate.
+
+command -v git-format-staged >/dev/null 2>&1 || exit 0
+command -v swiftformat       >/dev/null 2>&1 || exit 0
+
+git-format-staged --formatter "swiftformat stdin --stdin-path '{}'" "*.swift"

@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+
+# Xcode
+build/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+*.ipa
+*.dSYM
+*.dSYM.zip
+*.xcresult
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Signing material and secrets never belong in the repository
+*.mobileprovision
+*.provisionprofile
+*.p12
+*.cer
+*.keychain
+*.keychain-db
+*.certSigningRequest
+*.p8
+.env
+.env.*
+Config/*.local.xcconfig
