@@ -11,6 +11,7 @@ struct CDToggleStyle: ToggleStyle {
     private static let inset: CGFloat = 2
 
     @Environment(\.theme) private var theme
+    @Environment(\.layoutDirection) private var layoutDirection
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
@@ -47,7 +48,7 @@ struct CDToggleStyle: ToggleStyle {
                     .frame(width: Self.thumbSize, height: Self.thumbSize)
                     .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
                     .padding(Self.inset)
-                    .offset(x: isOn ? travel : 0)
+                    .offset(x: isOn ? (layoutDirection == .rightToLeft ? -travel : travel) : 0)
                     // Movement: none under Reduce Motion. The colour fade above stays.
                     .animation(reduceMotion ? nil : DesignSystem.Motion.settle, value: isOn)
             }

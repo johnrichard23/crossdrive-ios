@@ -64,7 +64,7 @@ struct MoreView: View {
             #endif
         }
         .dsList()
-        .navigationTitle("More")
+        .navigationTitle(MainTab.profile.title)
         .navigationBarTitleDisplayMode(.inline)
         .task { await permission.refresh() }
         .onChange(of: scenePhase) { _, phase in

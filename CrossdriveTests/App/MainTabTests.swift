@@ -1,4 +1,5 @@
 @testable import Crossdrive
+import UIKit
 import XCTest
 
 final class MainTabTests: XCTestCase {

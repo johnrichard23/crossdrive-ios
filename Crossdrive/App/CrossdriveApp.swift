@@ -40,8 +40,15 @@ struct CrossdriveApp: App {
                     services: debugServices()
                 )
             }
+            // No stub, but `-simulate-offline` still reports no connection.
+            return DependencyContainer(
+                features: .current,
+                environment: environment,
+                services: debugServices()
+            )
+        #else
+            return DependencyContainer(features: .current, environment: environment)
         #endif
-        return DependencyContainer(features: .current, environment: environment)
     }
 
     #if DEBUG
