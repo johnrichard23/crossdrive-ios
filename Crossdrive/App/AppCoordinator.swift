@@ -41,7 +41,7 @@ final class AppCoordinator {
     private(set) var isOnline = true
     var loginGate: LoginGate?
     var presentedLink: PresentedLink?
-    var selectedTab = MainTab.items
+    var selectedTab = MainTab.home
     var itemsPath: [SampleRoute] = []
 
     let container: DependencyContainer
@@ -188,7 +188,7 @@ final class AppCoordinator {
             pendingLink = nil
             loginGate = nil
             presentedLink = nil
-            selectedTab = .items
+            selectedTab = .home
             itemsPath = []
             route()
             mainResetToken = UUID()
@@ -219,7 +219,7 @@ final class AppCoordinator {
 
         switch pending.presentation {
         case .navigate:
-            selectedTab = .items
+            selectedTab = .events
             switch pending.link {
             case let .item(id): itemsPath = [.detail(id)]
             }

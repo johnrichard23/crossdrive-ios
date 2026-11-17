@@ -42,7 +42,11 @@ final class DependencyContainer: Sendable {
     }
 
     /// The real graph for the running app.
-    convenience init(features: AppFeatures, environment: AppEnvironment) {
+    convenience init(
+        features: AppFeatures,
+        environment: AppEnvironment,
+        services: PlatformServices = .system
+    ) {
         let urlSession = Self.makeURLSession()
         func makeClient(_ interceptors: [any RequestInterceptor] = []) -> URLSessionHTTPClient {
             URLSessionHTTPClient(
@@ -72,7 +76,7 @@ final class DependencyContainer: Sendable {
             secrets: secrets,
             session: session,
             client: client,
-            services: .system,
+            services: services,
             clearHTTPSession: { await client.clearSession() }
         )
     }

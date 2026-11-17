@@ -27,7 +27,7 @@ extension OnboardingPage {
             id: "control",
             systemImage: "slider.horizontal.3",
             title: "You're in control",
-            message: "Change your settings any time from the More tab."
+            message: "Change your settings any time from the Profile tab."
         ),
     ]
 }

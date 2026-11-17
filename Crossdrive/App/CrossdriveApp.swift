@@ -34,13 +34,36 @@ struct CrossdriveApp: App {
             // Run with no backend: canned replies instead of the network.
             // Everything else (notifications, connectivity, flags) stays real.
             if wantsStubAPI(arguments: CommandLine.arguments, defaults: .standard) {
-                return .preview(features: .current, environment: environment, services: .system)
+                return .preview(
+                    features: .current,
+                    environment: environment,
+                    services: debugServices()
+                )
             }
+            // No stub, but `-simulate-offline` still reports no connection.
+            return DependencyContainer(
+                features: .current,
+                environment: environment,
+                services: debugServices()
+            )
+        #else
+            return DependencyContainer(features: .current, environment: environment)
         #endif
-        return DependencyContainer(features: .current, environment: environment)
     }
 
     #if DEBUG
+        /// The real services, except that `-simulate-offline` reports no connection,
+        /// so offline banners and states can be checked in the simulator.
+        static func debugServices() -> PlatformServices {
+            var services = PlatformServices.system
+            if CommandLine.arguments.contains("-simulate-offline") {
+                let connectivity = FakeConnectivity()
+                Task { await connectivity.send(false) }
+                services.connectivity = connectivity
+            }
+            return services
+        }
+
         /// The `-stub-api` launch argument (what the Xcode scheme passes), or,
         /// for a start that can't take arguments (a link, a notification),
         /// `defaults write <bundle id> stub-api -bool YES`.
@@ -61,6 +84,7 @@ struct CrossdriveApp: App {
             }
             // Set once, here.
             .theme(.crossdrive)
+            .toggleStyle(.crossdrive)
         }
     }
 }
