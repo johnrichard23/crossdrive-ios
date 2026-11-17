@@ -25,13 +25,13 @@ final class AppCoordinatorPlatformTests: XCTestCase {
     func testHandleURL_WhenTheAppIsOnMain_ShouldOpenTheItemWithTheListBehindIt() async {
         // Arrange
         let coordinator = await started(AppFeatures())
-        coordinator.selectedTab = .more
+        coordinator.selectedTab = .profile
 
         // Act
         coordinator.handle(url: link("items/2"))
 
         // Assert
-        XCTAssertEqual(coordinator.selectedTab, .items)
+        XCTAssertEqual(coordinator.selectedTab, .events)
         XCTAssertEqual(coordinator.itemsPath, [.detail("2")])
     }
 
@@ -122,7 +122,7 @@ final class AppCoordinatorPlatformTests: XCTestCase {
 
         // Assert
         XCTAssertEqual(coordinator.itemsPath, [])
-        XCTAssertEqual(coordinator.selectedTab, .items)
+        XCTAssertEqual(coordinator.selectedTab, .home)
         XCTAssertNil(coordinator.presentedLink)
     }
 

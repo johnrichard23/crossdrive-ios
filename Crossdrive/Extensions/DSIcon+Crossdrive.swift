@@ -1,6 +1,6 @@
 import DesignSystem
 
-/// CrossDrive's own icon set (28 icons, 24-pt grid, 1.75-pt stroke), named once so screens never
+/// CrossDrive's own icon set (29 icons, 24-pt grid, 1.75-pt stroke), named once so screens never
 /// type asset strings. Draw with `DSIcon(.mission, role: .body)`; they take the surrounding text
 /// colour.
 extension DSIcon.Source {
@@ -24,6 +24,7 @@ extension DSIcon.Source {
     static let message = Self.asset("Icons/message")
     static let mission = Self.asset("Icons/mission")
     static let people = Self.asset("Icons/people")
+    static let pray = Self.asset("Icons/pray")
     static let phone = Self.asset("Icons/phone")
     static let play = Self.asset("Icons/play")
     static let plus = Self.asset("Icons/plus")

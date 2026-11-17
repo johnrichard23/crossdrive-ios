@@ -1,51 +1,44 @@
+import DesignSystem
 import SwiftUI
 
-/// The guest or signed-in home: peer tabs, each with its own stack. The
-/// selected tab and the Items stack live on the coordinator, so a link or a
-/// notification can open the right place.
-/// Tapping the tab you are already on pops it back to its root.
+/// The guest or signed-in home: five peer tabs, each with its own stack. The
+/// selected tab lives on the coordinator, so a link or a notification can open
+/// the right place. Tapping the tab you are already on pops it back to its root.
 struct MainTabView: View {
     @Bindable private var coordinator: AppCoordinator
-    @State private var sampleViewModel: SampleListViewModel
 
     init(coordinator: AppCoordinator) {
         self.coordinator = coordinator
-        _sampleViewModel = State(
-            initialValue: SampleListViewModel(
-                api: coordinator.container.sampleAPI,
-                reporter: coordinator.container.services.crashReporter
-            )
-        )
     }
 
     var body: some View {
-        TabView(selection: tabSelection) {
-            SampleListView(viewModel: sampleViewModel, path: $coordinator.itemsPath)
-                .tabItem { Label("Items", systemImage: "list.bullet") }
-                .tag(MainTab.items)
+        TabView(selection: $coordinator.selectedTab) {
+            emptyTab(.home, message: "Your next trip and today's prayer point will show here.")
+            emptyTab(.events, message: "Trips, camps and conferences will show here.")
+            emptyTab(.ministries, message: "Our ministries will show here.")
+            emptyTab(.pray, message: "Prayer points will show here.")
 
             NavigationStack {
                 MoreView(coordinator: coordinator)
+                    .navigationTitle(MainTab.profile.title)
             }
-            .tabItem { Label("More", systemImage: "ellipsis") }
-            .tag(MainTab.more)
+            .tabItem { Label(MainTab.profile.title, image: MainTab.profile.iconName) }
+            .tag(MainTab.profile)
         }
     }
 
-    private var tabSelection: Binding<MainTab> {
-        Binding(
-            get: { coordinator.selectedTab },
-            set: { newValue in
-                if newValue == coordinator.selectedTab, newValue == .items {
-                    coordinator.itemsPath.removeAll()
-                }
-                coordinator.selectedTab = newValue
-            }
-        )
+    /// A tab that has no feature yet: its name and one calm sentence.
+    private func emptyTab(_ tab: MainTab, message: String) -> some View {
+        NavigationStack {
+            DSStateView("Nothing here yet", message: message, systemImage: "tray")
+                .navigationTitle(tab.title)
+        }
+        .tabItem { Label(tab.title, image: tab.iconName) }
+        .tag(tab)
     }
 }
 
 #Preview {
     MainTabView(coordinator: AppCoordinator(container: .preview()))
-        .theme(.system)
+        .theme(.crossdrive)
 }

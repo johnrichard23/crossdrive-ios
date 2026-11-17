@@ -8,31 +8,17 @@ struct RootView: View {
     @Bindable var coordinator: AppCoordinator
 
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.theme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        ZStack {
-            switch coordinator.flow {
-            case .launching:
-                SplashView().transition(.opacity)
-            case .onboarding:
-                OnboardingFlowView(
-                    viewModel: OnboardingViewModel(
-                        pages: OnboardingPage.sample,
-                        onFinish: coordinator.finishOnboarding
-                    )
-                )
-                .transition(.opacity)
-            case .auth:
-                SignInView(viewModel: SignInViewModel(signIn: coordinator.signIn))
-                    .transition(.opacity)
-            case .main:
-                MainTabView(coordinator: coordinator)
-                    .id(coordinator.mainResetToken)
-                    .transition(.opacity)
-            }
+        // A VStack, not a top safe-area inset: tab screens with their own
+        // header (Home, Events, Ministries) drew under an inset banner.
+        VStack(spacing: 0) {
+            offlineBanner
+            flowContent
         }
-        .safeAreaInset(edge: .top) { offlineBanner }
+        .background(theme.background)
         .animation(DesignSystem.Motion.enter, value: coordinator.flow)
         // The banner pushes the screen down: movement, so none under Reduce Motion.
         .animation(reduceMotion ? nil : DesignSystem.Motion.enter, value: coordinator.isOnline)
@@ -65,6 +51,30 @@ struct RootView: View {
 }
 
 private extension RootView {
+    var flowContent: some View {
+        ZStack {
+            switch coordinator.flow {
+            case .launching:
+                SplashView().transition(.opacity)
+            case .onboarding:
+                OnboardingFlowView(
+                    viewModel: OnboardingViewModel(
+                        pages: OnboardingPage.sample,
+                        onFinish: coordinator.finishOnboarding
+                    )
+                )
+                .transition(.opacity)
+            case .auth:
+                SignInView(viewModel: SignInViewModel(signIn: coordinator.signIn))
+                    .transition(.opacity)
+            case .main:
+                MainTabView(coordinator: coordinator)
+                    .id(coordinator.mainResetToken)
+                    .transition(.opacity)
+            }
+        }
+    }
+
     @ViewBuilder var offlineBanner: some View {
         if coordinator.flow == .main, !coordinator.isOnline {
             DSBanner(
