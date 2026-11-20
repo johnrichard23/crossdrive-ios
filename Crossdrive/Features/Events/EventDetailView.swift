@@ -116,18 +116,28 @@ struct EventDetailView: View {
 
     // MARK: - Floating buttons
 
-    /// A blur behind the clock and battery once text scrolls under them.
+    /// A frosted bar behind the clock, the battery and the back and share
+    /// buttons once text scrolls under them, so the text never runs under a button.
     @ViewBuilder private var statusBackdrop: some View {
         if showsStatusBackdrop {
             GeometryReader { proxy in
                 Rectangle()
                     .fill(.regularMaterial)
-                    .frame(height: proxy.safeAreaInsets.top)
+                    .overlay(alignment: .bottom) {
+                        Rectangle().fill(theme.separator).frame(height: 1)
+                    }
+                    .frame(height: proxy.safeAreaInsets.top + buttonRowHeight)
                     .ignoresSafeArea(edges: .top)
             }
             .frame(height: 0)
             .transition(.opacity)
         }
+    }
+
+    /// The height of the back and share row: the 44 pt buttons grow with the text
+    /// size, plus the padding above and below them.
+    private var buttonRowHeight: CGFloat {
+        dynamicTypeSize.isAccessibilitySize ? 96 : 60
     }
 
     private var floatingButtons: some View {
@@ -165,6 +175,7 @@ struct EventDetailView: View {
             .padding(10)
             .frame(minWidth: 44, minHeight: 44)
             .background(theme.surface, in: Circle())
+            .overlay(Circle().stroke(theme.border.opacity(0.5), lineWidth: 1))
             .shadow(color: .black.opacity(0.16), radius: 3, y: 2)
     }
 

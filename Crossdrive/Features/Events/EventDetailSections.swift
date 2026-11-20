@@ -45,7 +45,10 @@ struct EventBand: View {
                 if index > 0 {
                     divider
                 }
-                VStack(spacing: 2) {
+                VStack(
+                    alignment: dynamicTypeSize.isAccessibilitySize ? .leading : .center,
+                    spacing: 2
+                ) {
                     Text(stat.value)
                         .textRole(.title3, emphasized: true)
                         .foregroundStyle(CDColor.onPine)

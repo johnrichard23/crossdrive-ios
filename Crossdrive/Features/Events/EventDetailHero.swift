@@ -9,6 +9,8 @@ struct EventHero: View {
     /// shows the Pine ground, then the photo fades in if it arrives late.
     let image: UIImage?
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         ZStack(alignment: .bottomLeading) {
             photo
@@ -59,8 +61,13 @@ struct EventHero: View {
         .padding(16)
     }
 
+    /// Side by side normally; stacked at accessibility sizes, where two tags
+    /// would each wrap onto a second line.
     private var tags: some View {
-        HStack(spacing: 8) {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 8))
+        return layout {
             CDDateStamp(text: event.dateRangeLabel)
             Text(event.kind.tagLabel)
                 .textRole(.footnote, emphasized: true)
