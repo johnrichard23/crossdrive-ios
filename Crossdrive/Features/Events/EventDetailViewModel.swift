@@ -125,43 +125,21 @@ final class EventDetailViewModel {
         token: Int
     ) async {
         let imageLoader = imageLoader
-        let deadline = mediaDeadline
-        await withTaskGroup(of: Bool.self) { group in
-            var waitingFor = 0
-            if let url = detail.event.heroImageURL {
-                waitingFor += 1
-                let pixels = ImageDownsampler.maxPixels(for: media.heroSize, scale: media.scale)
-                group.addTask {
-                    let image = await imageLoader.image(for: url, maxPixels: pixels)
-                    await self.showHero(image)
-                    return true
-                }
+        var loads: [@Sendable () async -> Void] = []
+        if let url = detail.event.heroImageURL {
+            let pixels = ImageDownsampler.maxPixels(for: media.heroSize, scale: media.scale)
+            loads.append { [weak self] in
+                let image = await imageLoader.image(for: url, maxPixels: pixels)
+                await self?.showHero(image)
             }
-            if let location = detail.location {
-                waitingFor += 1
-                let key = MapKey(size: media.mapSize, scale: media.scale, isDark: media.isDark)
-                group.addTask { await self.drawMap(of: location, key: key); return true }
-            }
-            guard waitingFor > 0 else {
-                reveal(detail, token: token)
-                return
-            }
-            group.addTask {
-                await deadline()
-                return false
-            }
-            for await isMedia in group {
-                if isMedia {
-                    waitingFor -= 1
-                    if waitingFor == 0 {
-                        reveal(detail, token: token)
-                        group.cancelAll()
-                    }
-                } else {
-                    // Too slow: show the screen now; the photo and map keep loading.
-                    reveal(detail, token: token)
-                }
-            }
+        }
+        if let location = detail.location {
+            let key = MapKey(size: media.mapSize, scale: media.scale, isDark: media.isDark)
+            loads.append { [weak self] in await self?.drawMap(of: location, key: key) }
+        }
+        // Too slow: the screen shows at the deadline and the media keeps loading.
+        await MediaGate.reveal(after: loads, deadline: mediaDeadline) { [weak self] in
+            self?.reveal(detail, token: token)
         }
     }
 

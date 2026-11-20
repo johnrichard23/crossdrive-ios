@@ -61,4 +61,11 @@ enum CDColor {
     static let pineDivider = DesignSystem.color(light: 0x3A4B49, dark: 0x34504D)
     static let pineLine = DesignSystem.color(light: 0x6F7E7D, dark: 0x6F7E7D)
     static let lanesOnPine = DesignSystem.color(light: 0x9C7AD6, dark: 0x9C7AD6)
+    /// The ring around the round photo on the Home ticket.
+    static let pineRing = DesignSystem.color(light: 0x2E3F3C, dark: 0x34504D)
+    /// The empty part of a slots bar, and the small grey captions beside it.
+    static let meterTrack = DesignSystem.color(light: 0xE3E8E7, dark: 0x2E3B3A)
+    static let captionMuted = DesignSystem.color(light: 0x5A6A69, dark: 0xA3AFAE)
+    /// Small text on a photo scrim.
+    static let onScrimMuted = DesignSystem.color(light: 0xDDE6E4, dark: 0xDDE6E4)
 }

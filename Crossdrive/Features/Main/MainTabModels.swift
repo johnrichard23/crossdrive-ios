@@ -15,6 +15,9 @@ final class MainTabModels {
 
     private(set) lazy var home = HomeViewModel(
         api: container.homeAPI,
+        eventsAPI: container.eventsAPI,
+        imageLoader: container.imageLoader,
+        snapshotter: container.mapSnapshotter,
         reporter: container.services.crashReporter
     )
 

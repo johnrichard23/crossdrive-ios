@@ -1,20 +1,26 @@
-/// What the server sends for Home. Every field the server may leave out is
-/// optional; `HomeMapper` decides what to drop.
 struct HomeDTO: Codable, Sendable {
-    var nextEvent: EventDTO?
-    var prayerPoint: PrayerDTO?
-    var latestStory: StoryDTO?
+    var nextTrip: HomeTripDTO?
+    var latestStory: HomeStoryDTO?
+}
 
-    struct PrayerDTO: Codable, Sendable {
-        var id: String?
-        var body: String?
-        var prayedCount: Int?
-    }
+struct HomeTripDTO: Codable, Sendable {
+    var event: EventDTO?
+    var fromPlace: String?
+    var registration: EventDetailDTO.MeDTO?
+    var meetup: EventDetailDTO.MeetupDTO?
 
-    struct StoryDTO: Codable, Sendable {
-        var id: String?
-        var title: String?
-        var summary: String?
-        var imageURL: String?
+    enum CodingKeys: String, CodingKey {
+        case event, fromPlace, meetup
+        case registration = "me"
     }
+}
+
+struct HomeStoryDTO: Codable, Sendable {
+    var id: String?
+    var title: String?
+    var quote: String?
+    var madeBy: String?
+    var imageURL: String?
+    var filmURL: String?
+    var hasConsent: Bool?
 }

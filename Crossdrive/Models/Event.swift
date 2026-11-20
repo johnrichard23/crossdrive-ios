@@ -52,6 +52,39 @@ struct Event: Identifiable, Hashable, Sendable {
         isClosed && !isFull
     }
 
+    /// What the trip offers a person. Home and Trip detail share this one rule.
+    func bar(registration: EventRegistration?) -> EventBar {
+        if let registration, registration.status == .going {
+            return .going(paid: registration.isPaid, waiverSigned: registration.waiverSigned)
+        }
+        if registration?.status == .waitlisted {
+            return .waitlisted
+        }
+        if isClosedToSignUp {
+            return .closed
+        }
+        if isFull || hasNoSlotsLeft {
+            return .full
+        }
+        return .register
+    }
+
+    /// Whole days from today to the first day, in Manila time. 0 is today and
+    /// a negative number means the trip has started.
+    func daysUntilStart(from now: Date) -> Int {
+        let calendar = Self.manilaCalendar
+        return calendar.dateComponents(
+            [.day],
+            from: calendar.startOfDay(for: now),
+            to: calendar.startOfDay(for: startsAt)
+        ).day ?? 0
+    }
+
+    /// How many slots remain, or `nil` when there is no limit.
+    var slotsLeftCount: Int? {
+        capacity.map { max($0 - registeredCount, 0) }
+    }
+
     /// "Dec 12 to 14", "Dec 30 to Jan 2" or "Dec 12", in Manila time.
     var dateRangeLabel: String {
         let start = Self.monthDay.format(startsAt)

@@ -1,33 +1,41 @@
 import Foundation
 
-/// The only place `HomeDTO` and `HomeSummary` meet. Home is read-only, so
-/// there is no way back to a DTO. A part that can't be read is dropped and the
-/// rest of Home still shows.
 struct HomeMapper: Sendable {
     private let events = EventMapper()
 
     func model(from dto: HomeDTO) -> HomeSummary {
         HomeSummary(
-            nextEvent: dto.nextEvent.flatMap(events.model),
-            prayerPoint: dto.prayerPoint.flatMap(prayer),
+            trip: dto.nextTrip.flatMap(trip),
             latestStory: dto.latestStory.flatMap(story)
         )
     }
 
-    private func prayer(from dto: HomeDTO.PrayerDTO) -> HomePrayer? {
-        guard let id = dto.id, !id.isEmpty, let body = dto.body, !body.isEmpty else { return nil }
-        return HomePrayer(id: id, body: body, prayedCount: dto.prayedCount ?? 0)
+    private func trip(from dto: HomeTripDTO) -> HomeTrip? {
+        guard let event = dto.event.flatMap(events.model) else { return nil }
+        let registration = dto.registration.flatMap(events.registration)
+        return HomeTrip(
+            event: event,
+            fromPlace: dto.fromPlace.flatMap { $0.isEmpty ? nil : $0 },
+            registration: registration,
+            // The meeting point is for people who are going, whatever the server sent.
+            meetup: registration?.status == .going ? dto.meetup.flatMap(events.meetup) : nil
+        )
     }
 
-    private func story(from dto: HomeDTO.StoryDTO) -> HomeStory? {
-        guard let id = dto.id, !id.isEmpty, let title = dto.title, !title.isEmpty else {
-            return nil
-        }
+    private func story(from dto: HomeStoryDTO) -> HomeStory? {
+        // Photos of children need the family's consent before the app shows them.
+        guard dto.hasConsent == true,
+              let id = dto.id, !id.isEmpty,
+              let title = dto.title, !title.isEmpty
+        else { return nil }
         return HomeStory(
             id: id,
             title: title,
-            summary: dto.summary ?? "",
-            imageURL: dto.imageURL.flatMap(URL.init(string:))
+            quote: dto.quote ?? title,
+            madeBy: dto.madeBy.flatMap { $0.isEmpty ? nil : $0 },
+            imageURL: dto.imageURL.flatMap(URL.init(string:)),
+            filmURL: dto.filmURL.flatMap(URL.init(string:))
+                .flatMap { $0.scheme == "https" ? $0 : nil }
         )
     }
 }
