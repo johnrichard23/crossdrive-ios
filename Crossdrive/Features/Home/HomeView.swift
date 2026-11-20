@@ -165,7 +165,7 @@ struct HomeView: View {
                     trip: trip,
                     countdown: viewModel.countdown,
                     photo: viewModel.tripImage,
-                    onRegister: { accountGate {} },
+                    onRegister: { accountGate(for: trip.event.gateTrip) {} },
                     onOpenTrip: { path.append(.detail(trip.event.id)) }
                 )
             } else {
