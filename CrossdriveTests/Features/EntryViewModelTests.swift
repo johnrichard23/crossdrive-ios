@@ -4,41 +4,11 @@ import XCTest
 
 @MainActor
 final class EntryViewModelTests: XCTestCase {
-    private struct Rig {
-        var viewModel: EntryViewModel
-        var requests: Recorder<String>
-        var signIns: Recorder<String>
-    }
-
-    /// `handler` answers the account endpoints; `signIn` is the coordinator's sign-in.
-    private func makeRig(
-        trip: GateTrip? = nil,
-        handler: @escaping @Sendable (Endpoint) async throws -> HTTPResponse = { _ in .json("{}") },
-        signIn: @escaping @Sendable (Credentials) async throws -> Void = { _ in }
-    ) -> Rig {
-        let requests = Recorder<String>()
-        let signIns = Recorder<String>()
-        let client = StubHTTPClient { endpoint in
-            requests.add(endpoint.path)
-            return try await handler(endpoint)
-        }
-        let viewModel = EntryViewModel(
-            trip: trip,
-            accountAPI: AccountAPI(client: client),
-            imageLoader: FakeImageLoader(),
-            signIn: { credentials in
-                signIns.add(credentials.email)
-                try await signIn(credentials)
-            }
-        )
-        return Rig(viewModel: viewModel, requests: requests, signIns: signIns)
-    }
-
     // MARK: Email step
 
     func testContinueWithEmail_WhenEmailIsBad_ShouldAskNothingAndFocusTheEmail() async {
         // Arrange
-        let rig = makeRig()
+        let rig = makeEntryRig()
         rig.viewModel.email = "joy"
 
         // Act
@@ -53,7 +23,7 @@ final class EntryViewModelTests: XCTestCase {
 
     func testContinueWithEmail_WhenEmailHasAnAccount_ShouldShowThePasswordStep() async {
         // Arrange
-        let rig = makeRig { _ in .json(#"{"exists": true}"#) }
+        let rig = makeEntryRig { _ in .json(#"{"exists": true}"#) }
         rig.viewModel.email = " joy@example.com "
 
         // Act
@@ -66,7 +36,7 @@ final class EntryViewModelTests: XCTestCase {
 
     func testContinueWithEmail_WhenEmailIsNew_ShouldShowTheCreateStep() async {
         // Arrange
-        let rig = makeRig { _ in .json(#"{"exists": false}"#) }
+        let rig = makeEntryRig { _ in .json(#"{"exists": false}"#) }
         rig.viewModel.email = "new@example.com"
 
         // Act
@@ -76,22 +46,59 @@ final class EntryViewModelTests: XCTestCase {
         XCTAssertEqual(rig.viewModel.path, [.create])
     }
 
-    func testContinueWithEmail_WhenTheAnswerCannotBeHad_ShouldAskForThePasswordNotCreateAnAccount(
-    ) async {
+    func testContinueWithEmail_WhenTheServerFails_ShouldStayAndLetThemTryAgain() async {
         // Arrange
-        let rig = makeRig { _ in .json("{}", status: 500) }
+        let rig = makeEntryRig { _ in .json("{}", status: 500) }
+        rig.viewModel.email = "joy@example.com"
+
+        // Act
+        let field = await rig.viewModel.continueWithEmail()
+
+        // Assert
+        XCTAssertNil(field)
+        XCTAssertTrue(rig.viewModel.path.isEmpty)
+        XCTAssertNotNil(rig.viewModel.formError)
+        XCTAssertEqual(rig.viewModel.failureCount, 1)
+    }
+
+    func testContinueWithEmail_WhenTheReplyHasNoAnswer_ShouldNotTreatTheEmailAsNew() async {
+        // Arrange
+        let rig = makeEntryRig { _ in .json("{}") }
         rig.viewModel.email = "joy@example.com"
 
         // Act
         await rig.viewModel.continueWithEmail()
 
         // Assert
-        XCTAssertEqual(rig.viewModel.path, [.password])
+        XCTAssertTrue(rig.viewModel.path.isEmpty)
+        XCTAssertNotNil(rig.viewModel.formError)
+    }
+
+    func testContinueWithEmail_WhenTheEmailIsEditedWhileAsking_ShouldDropTheOldAnswer() async {
+        // Arrange
+        let started = Gate()
+        let release = Gate()
+        let rig = makeEntryRig { _ in
+            await started.open()
+            await release.wait()
+            return .json(#"{"exists": true}"#)
+        }
+        rig.viewModel.email = "joy@example.com"
+        let asking = Task { await rig.viewModel.continueWithEmail() }
+        await started.wait()
+
+        // Act
+        rig.viewModel.email = "someone.else@example.com"
+        await release.open()
+        await asking.value
+
+        // Assert
+        XCTAssertTrue(rig.viewModel.path.isEmpty)
     }
 
     func testContinueWithEmail_WhenOffline_ShouldStayAndSayYouAreOffline() async {
         // Arrange
-        let rig = makeRig { _ in throw NetworkError.noConnection }
+        let rig = makeEntryRig { _ in throw NetworkError.noConnection }
         rig.viewModel.email = "joy@example.com"
 
         // Act
@@ -109,7 +116,7 @@ final class EntryViewModelTests: XCTestCase {
         // Arrange
         let started = Gate()
         let release = Gate()
-        let rig = makeRig { _ in
+        let rig = makeEntryRig { _ in
             await started.open()
             await release.wait()
             return .json(#"{"exists": true}"#)
@@ -132,7 +139,7 @@ final class EntryViewModelTests: XCTestCase {
 
     func testSignInTapped_WhenPasswordIsEmpty_ShouldFocusThePasswordWithoutSigningIn() async {
         // Arrange
-        let rig = makeRig()
+        let rig = makeEntryRig()
         rig.viewModel.email = "joy@example.com"
 
         // Act
@@ -145,7 +152,7 @@ final class EntryViewModelTests: XCTestCase {
 
     func testSignInTapped_WhenPasswordIsRight_ShouldSignInWithTheTrimmedEmail() async {
         // Arrange
-        let rig = makeRig()
+        let rig = makeEntryRig()
         rig.viewModel.email = " joy@example.com "
         rig.viewModel.password = "correct horse"
 
@@ -159,7 +166,7 @@ final class EntryViewModelTests: XCTestCase {
 
     func testSignInTapped_WhenPasswordIsWrong_ShouldSayItDoesNotMatch() async {
         // Arrange
-        let rig = makeRig(signIn: { _ in throw AuthError.invalidCredentials })
+        let rig = makeEntryRig(signIn: { _ in throw AuthError.invalidCredentials })
         rig.viewModel.password = "nope"
 
         // Act
@@ -176,7 +183,9 @@ final class EntryViewModelTests: XCTestCase {
 
     func testSignInTapped_WhenTooManyTries_ShouldLockAndOfferTheReset() async {
         // Arrange
-        let rig = makeRig(signIn: { _ in throw NetworkError.client(status: 429, message: nil) })
+        let rig = makeEntryRig(signIn: { _ in
+            throw NetworkError.client(status: 429, message: nil)
+        })
         rig.viewModel.password = "nope"
 
         // Act
@@ -190,7 +199,7 @@ final class EntryViewModelTests: XCTestCase {
 
     func testSignInTapped_WhenTooManyTries_ShouldShowThePausedMessage() async {
         // Arrange
-        let rig = makeRig(signIn: { _ in throw AuthError.accountLocked })
+        let rig = makeEntryRig(signIn: { _ in throw AuthError.accountLocked })
         rig.viewModel.password = "nope"
 
         // Act
@@ -206,7 +215,9 @@ final class EntryViewModelTests: XCTestCase {
 
     func testSignInTapped_WhenTheServerFails_ShouldShowAPlainMessageNotAFieldError() async {
         // Arrange
-        let rig = makeRig(signIn: { _ in throw NetworkError.server(status: 500, message: nil) })
+        let rig = makeEntryRig(signIn: { _ in
+            throw NetworkError.server(status: 500, message: nil)
+        })
         rig.viewModel.password = "fine"
 
         // Act
@@ -218,98 +229,26 @@ final class EntryViewModelTests: XCTestCase {
         XCTAssertNotNil(rig.viewModel.formError)
     }
 
-    // MARK: Create step
-
-    func testCreateAccountTapped_WhenNameIsEmpty_ShouldFocusTheName() async {
-        // Arrange
-        let rig = makeRig()
-        rig.viewModel.password = "longenough"
-
-        // Act
-        let field = await rig.viewModel.createAccountTapped()
-
-        // Assert
-        XCTAssertEqual(field, .name)
-        XCTAssertTrue(rig.requests.values.isEmpty)
-    }
-
-    func testCreateAccountTapped_WhenPasswordIsTooShort_ShouldSayHowManyCharactersItHas() async {
-        // Arrange
-        let rig = makeRig()
-        rig.viewModel.name = "Joy"
-        rig.viewModel.password = "12345"
-
-        // Act
-        let field = await rig.viewModel.createAccountTapped()
-
-        // Assert
-        XCTAssertEqual(field, .password)
-        XCTAssertEqual(rig.viewModel.passwordError, "Use at least 8 characters. This one has 5.")
-    }
-
-    func testCreateAccountTapped_WhenNotAgreed_ShouldNotCreateTheAccount() async {
-        // Arrange
-        let rig = makeRig()
-        rig.viewModel.name = "Joy"
-        rig.viewModel.password = "longenough"
-        rig.viewModel.hasAgreed = false
-
-        // Act
-        await rig.viewModel.createAccountTapped()
-
-        // Assert
-        XCTAssertNotNil(rig.viewModel.agreementError)
-        XCTAssertTrue(rig.requests.values.isEmpty)
-    }
-
-    func testCreateAccountTapped_WhenAccountIsReady_ShouldSignInWithTheSameDetails() async {
-        // Arrange
-        let rig = makeRig { _ in .json(#"{"verificationRequired": false}"#) }
-        rig.viewModel.email = "new@example.com"
-        rig.viewModel.name = " Joy "
-        rig.viewModel.password = "longenough"
-
-        // Act
-        let field = await rig.viewModel.createAccountTapped()
-
-        // Assert
-        XCTAssertNil(field)
-        XCTAssertEqual(rig.requests.values, ["auth/sign-up"])
-        XCTAssertEqual(rig.signIns.values, ["new@example.com"])
-    }
-
-    func testCreateAccountTapped_WhenTheEmailMustBeChecked_ShouldShowCheckYourEmailAndNotSignIn(
+    func testSignInTapped_WhenAnEarlierAttemptFailedWithAServerError_ShouldClearThatMessage(
     ) async {
         // Arrange
-        let rig = makeRig { _ in .json(#"{"verificationRequired": true}"#) }
-        rig.viewModel.email = "new@example.com"
-        rig.viewModel.name = "Joy"
-        rig.viewModel.password = "longenough"
-
-        // Act
-        await rig.viewModel.createAccountTapped()
-
-        // Assert
-        XCTAssertEqual(rig.viewModel.path, [.checkEmail])
-        XCTAssertTrue(rig.signIns.values.isEmpty)
-    }
-
-    func testCreateAccountTapped_WhenTheEmailAlreadyHasAnAccount_ShouldMoveToThePasswordStep(
-    ) async {
-        // Arrange
-        let rig = makeRig { _ in .json(#"{"message": "exists"}"#, status: 409) }
-        rig.viewModel.email = "joy@example.com"
-        rig.viewModel.name = "Joy"
-        rig.viewModel.password = "longenough"
-        rig.viewModel.path = [.create]
-
-        // Act
-        await rig.viewModel.createAccountTapped()
-
-        // Assert
-        XCTAssertEqual(rig.viewModel.path, [.password])
-        XCTAssertEqual(rig.viewModel.password, "")
+        let failures = Counter()
+        let rig = makeEntryRig(signIn: { _ in
+            if failures.next() == 1 {
+                throw NetworkError.server(status: 500, message: nil)
+            }
+            throw AuthError.invalidCredentials
+        })
+        rig.viewModel.password = "nope"
+        await rig.viewModel.signInTapped()
         XCTAssertNotNil(rig.viewModel.formError)
+
+        // Act
+        await rig.viewModel.signInTapped()
+
+        // Assert
+        XCTAssertNil(rig.viewModel.formError)
+        XCTAssertNotNil(rig.viewModel.passwordError)
     }
 
     // MARK: Reset and photos
@@ -317,7 +256,7 @@ final class EntryViewModelTests: XCTestCase {
     func testSendResetLinkTapped_WhenEmailIsGood_ShouldTellThemWithoutSayingIfTheAccountExists(
     ) async {
         // Arrange
-        let rig = makeRig()
+        let rig = makeEntryRig()
         rig.viewModel.email = "joy@example.com"
 
         // Act
@@ -333,7 +272,7 @@ final class EntryViewModelTests: XCTestCase {
 
     func testLoadMedia_WhenFourPhotosCome_ShouldShowThemAll() async {
         // Arrange
-        let rig = makeRig { _ in .json(SampleStub.welcomePhotosJSON) }
+        let rig = makeEntryRig { _ in .json(SampleStub.welcomePhotosJSON) }
 
         // Act
         await rig.viewModel.loadMedia(scale: 2)
@@ -344,7 +283,7 @@ final class EntryViewModelTests: XCTestCase {
 
     func testLoadMedia_WhenFewerThanFourComeOrTheCallFails_ShouldShowNoMosaic() async {
         // Arrange
-        let rig = makeRig { _ in .json(#"{"photos": ["https://example.com/a.jpg"]}"#) }
+        let rig = makeEntryRig { _ in .json(#"{"photos": ["https://example.com/a.jpg"]}"#) }
 
         // Act
         await rig.viewModel.loadMedia(scale: 2)

@@ -6,25 +6,37 @@ struct AccountAPI: Sendable {
     let client: any HTTPClient
 
     /// `POST /auth/email-status` (public, rate limited): whether this email has
-    /// an account. Decides between the password step and the create step.
+    /// an account. Decides between the password step and the create step. A reply
+    /// without `exists` is an error, never "new".
     func status(ofEmail email: String) async throws -> AccountStatus {
         let reply: StatusReply = try await client.send(
             .post("auth/email-status", body: EmailBody(email: email))
         )
-        return reply.exists == true ? .hasAccount : .newEmail
+        return reply.exists ? .hasAccount : .newEmail
     }
 
-    /// `POST /auth/sign-up` (public): makes the account. A 409 is
-    /// `AuthError.emailAlreadyExists`.
-    func signUp(name: String, email: String, password: String) async throws -> SignUpResult {
+    /// `POST /auth/sign-up` (public): makes the account and records that the person
+    /// agreed to how their details are kept. A 409 is `AuthError.emailAlreadyExists`;
+    /// a reply without `verificationRequired` is an error.
+    func signUp(
+        name: String,
+        email: String,
+        password: String,
+        hasAgreed: Bool
+    ) async throws -> SignUpResult {
         do {
             let reply: SignUpReply = try await client.send(
                 .post(
                     "auth/sign-up",
-                    body: SignUpBody(name: name, email: email, password: password)
+                    body: SignUpBody(
+                        name: name,
+                        email: email,
+                        password: password,
+                        hasAgreed: hasAgreed
+                    )
                 )
             )
-            return reply.verificationRequired == true ? .needsEmailVerification : .created
+            return reply.verificationRequired ? .needsEmailVerification : .created
         } catch let error as NetworkError where error.statusCode == 409 {
             throw AuthError.emailAlreadyExists
         }
@@ -56,14 +68,15 @@ struct AccountAPI: Sendable {
         var name: String
         var email: String
         var password: String
+        var hasAgreed: Bool
     }
 
     private struct StatusReply: Decodable {
-        var exists: Bool?
+        var exists: Bool
     }
 
     private struct SignUpReply: Decodable {
-        var verificationRequired: Bool?
+        var verificationRequired: Bool
     }
 
     private struct PhotosReply: Decodable {

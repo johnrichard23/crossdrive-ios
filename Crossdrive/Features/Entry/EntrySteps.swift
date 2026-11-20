@@ -350,6 +350,7 @@ struct EntryCheckEmailStep: View {
 
     @Environment(\.theme) private var theme
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
 
     /// The email in bold, inside a sentence.
     private var emailText: Text {
@@ -384,6 +385,12 @@ struct EntryCheckEmailStep: View {
                     Task { await viewModel.resendVerificationTapped() }
                 }
                 .buttonStyle(.ds(.secondary, isLoading: viewModel.isSubmitting))
+            }
+        }
+        // Back from Mail with the email confirmed: carry on without another tap.
+        .onChange(of: scenePhase) {
+            if scenePhase == .active {
+                Task { await viewModel.resumeAfterVerification() }
             }
         }
     }

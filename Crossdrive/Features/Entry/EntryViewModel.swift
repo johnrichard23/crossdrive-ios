@@ -26,7 +26,8 @@ final class EntryViewModel {
     var email = ""
     var name = ""
     var password = ""
-    var hasAgreed = true
+    /// Starts unticked: agreeing is the person's own choice.
+    var hasAgreed = false
 
     private(set) var emailError: String?
     private(set) var nameError: String?
@@ -53,6 +54,9 @@ final class EntryViewModel {
     private let imageLoader: any ImageLoading
     private let signIn: (Credentials) async throws -> Void
     private let minimumPasswordLength = 8
+    /// The details just signed up, kept in memory only while "Check your email"
+    /// waits, so signing in can resume once the email is confirmed.
+    private var unverified: Credentials?
 
     init(
         trip: GateTrip?,
@@ -118,8 +122,12 @@ final class EntryViewModel {
             return fail(.email)
         }
         formError = nil
+        let asked = trimmedEmail
         do {
-            switch try await accountAPI.status(ofEmail: trimmedEmail) {
+            let status = try await accountAPI.status(ofEmail: asked)
+            // The address was edited while asking: the answer is for another one.
+            guard asked == trimmedEmail else { return nil }
+            switch status {
             case .hasAccount: show(.password)
             case .newEmail: show(.create)
             }
@@ -130,10 +138,10 @@ final class EntryViewModel {
             formError = String(localized: "You're offline. Connect to the internet to sign in.")
             return fail(nil)
         } catch {
-            // When the answer can't be had, ask for the password: never push a
-            // person with an account into making a second one.
-            show(.password)
-            return nil
+            // No answer means no step: say so and let them try again. A person who
+            // already has an account is still stopped by the server (409) at sign-up.
+            formError = error.userMessage
+            return fail(nil)
         }
     }
 
@@ -145,6 +153,7 @@ final class EntryViewModel {
         isSubmitting = true
         defer { isSubmitting = false }
 
+        formError = nil
         if password.isEmpty {
             passwordError = String(localized: "Enter your password.")
             return fail(.password)
@@ -179,6 +188,7 @@ final class EntryViewModel {
         isSubmitting = true
         defer { isSubmitting = false }
 
+        formError = nil
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         nameError = trimmedName.isEmpty ? String(localized: "Enter your name.") : nil
         passwordError = passwordProblemForNewAccount
@@ -193,15 +203,19 @@ final class EntryViewModel {
             return fail(nil)
         }
 
+        // What was sent is what signs in, even if the fields are edited meanwhile.
+        let credentials = Credentials(email: trimmedEmail, password: password)
         do {
             switch try await accountAPI.signUp(
                 name: trimmedName,
-                email: trimmedEmail,
-                password: password
+                email: credentials.email,
+                password: credentials.password,
+                hasAgreed: hasAgreed
             ) {
             case .created:
-                try await signIn(Credentials(email: trimmedEmail, password: password))
+                try await signIn(credentials)
             case .needsEmailVerification:
+                unverified = credentials
                 show(.checkEmail)
             }
             formError = nil
@@ -251,6 +265,20 @@ final class EntryViewModel {
             resetNotice = nil
             formError = error.userMessage
             return fail(nil)
+        }
+    }
+
+    /// The person is back in the app on "Check your email": if they confirmed it,
+    /// signing in now works and the tapped action goes on. Still unconfirmed is
+    /// not an error; the step just stays.
+    func resumeAfterVerification() async {
+        guard path.last == .checkEmail, let credentials = unverified, !isSubmitting else {
+            return
+        }
+        isSubmitting = true
+        defer { isSubmitting = false }
+        if await (try? signIn(credentials)) != nil {
+            unverified = nil
         }
     }
 

@@ -12,7 +12,7 @@ import Observation
 final class AppCoordinator {
     /// A request to sign in, shown as a sheet over the current screen.
     struct LoginGate: Identifiable {
-        let id = UUID()
+        let id: UUID
         /// The sheet's one view model, made when it is asked for and freed with the gate.
         let viewModel: EntryViewModel
     }
@@ -127,15 +127,17 @@ final class AppCoordinator {
             action()
             return
         }
+        // One gate at a time: its trip and its action are set together, so a
+        // second request while the sheet is open can't leave them out of step.
+        guard loginGate == nil else { return }
         pendingAction = action
-        if loginGate == nil {
-            loginGate = LoginGate(viewModel: EntryViewModel(
-                trip: trip,
-                accountAPI: container.accountAPI,
-                imageLoader: container.imageLoader,
-                signIn: { [weak self] credentials in try await self?.signIn(credentials) }
-            ))
-        }
+        let id = UUID()
+        loginGate = LoginGate(id: id, viewModel: EntryViewModel(
+            trip: trip,
+            accountAPI: container.accountAPI,
+            imageLoader: container.imageLoader,
+            signIn: { [weak self] credentials in try await self?.signIn(credentials, from: id) }
+        ))
     }
 
     /// The sheet went away without a sign-in (cancel button or swipe down).
@@ -145,6 +147,17 @@ final class AppCoordinator {
 
     func signIn(_ credentials: Credentials) async throws {
         let user = try await container.session.signIn(credentials)
+        apply(.signedIn(user))
+    }
+
+    /// Signs in for one login gate. If the person cancelled that gate while the
+    /// request was out, the session it made is dropped and nothing carries on.
+    private func signIn(_ credentials: Credentials, from gate: LoginGate.ID) async throws {
+        let user = try await container.session.signIn(credentials)
+        guard loginGate?.id == gate else {
+            await signOut()
+            throw CancellationError()
+        }
         apply(.signedIn(user))
     }
 
