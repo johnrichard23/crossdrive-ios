@@ -17,24 +17,38 @@ enum SampleStub {
     ]
     """
 
-    static let homeJSON = """
-    {
-      "nextEvent": {
-        "id": "behia", "kind": "trip", "title": "Behia Mission Trip",
-        "place": "Bagatao Island", "travelTime": "1 hr by boat",
-        "startsAt": "2026-12-11T22:00:00Z", "endsAt": "2026-12-14T10:00:00Z",
-        "fee": {"amountMinor": 150000, "currency": "PHP"},
-        "capacity": 40, "registeredCount": 28, "status": "open",
-        "heroImageURL": "https://images.pexels.com/photos/23499309/pexels-photo-23499309.jpeg?auto=compress&w=900"
-      },
-      "prayerPoint": {"id": "p1", "body": "Safe seas for the boat to Bagatao.", "prayedCount": 47},
-      "latestStory": {
-        "id": "s1", "title": "Kwento ng Behia",
-        "summary": "What a weekend on Bagatao looks like, with the film the kids made.",
-        "imageURL": "https://images.pexels.com/photos/1739842/pexels-photo-1739842.jpeg?auto=compress&w=300"
-      }
+    /// The Home reply; `-stub-home-going` shows the same trip for a person who is going.
+    static func homeJSON(going: Bool = false) -> String {
+        let registration = going
+            ? #""me": {"status": "going", "waiverSigned": false, "paid": false},"#
+            : ""
+        let meetup = going ? #""meetup": {"point": "Magallanes port", "time": "5:30 AM"},"# : ""
+        return """
+        {
+          "nextTrip": {
+            "event": {
+              "id": "behia", "kind": "trip", "title": "Behia Mission Trip",
+              "place": "Bagatao Island", "travelTime": "1 hr by boat",
+              "startsAt": "2026-12-11T22:00:00Z", "endsAt": "2026-12-14T10:00:00Z",
+              "fee": {"amountMinor": 150000, "currency": "PHP"},
+              "capacity": 34, "registeredCount": 22, "status": "open",
+              "heroImageURL": "https://images.pexels.com/photos/23499309/pexels-photo-23499309.jpeg?auto=compress&w=600"
+            },
+            "fromPlace": "Magallanes",
+            \(registration)
+            \(meetup)
+            "ready": true
+          },
+          "latestStory": {
+            "id": "s1", "title": "Kwento ng Behia", "quote": "Salamat, Behia.",
+            "madeBy": "Made by the youth of Behia",
+            "imageURL": "https://images.pexels.com/photos/1739842/pexels-photo-1739842.jpeg?auto=compress&w=900",
+            "filmURL": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "hasConsent": true
+          }
+        }
+        """
     }
-    """
 
     static let eventsJSON = """
     [
@@ -208,7 +222,7 @@ enum SampleStub {
         case (.get, "events"):
             return .json(eventsJSON)
         case (.get, "home"):
-            return .json(homeJSON)
+            return .json(homeJSON(going: CommandLine.arguments.contains("-stub-home-going")))
         case (.post, "auth/sign-in"):
             let fields = endpoint.body.flatMap { try? JSONDecoder().decode(
                 [String: String].self,

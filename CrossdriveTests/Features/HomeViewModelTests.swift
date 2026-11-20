@@ -3,7 +3,7 @@ import DataLayer
 import DesignSystem
 import XCTest
 
-private let homeJSON = #"{"prayerPoint": {"id": "p1", "body": "Safe seas.", "prayedCount": 3}}"#
+private let homeJSON = SampleStub.homeJSON()
 
 @MainActor
 final class HomeViewModelTests: XCTestCase {
@@ -15,7 +15,7 @@ final class HomeViewModelTests: XCTestCase {
         await viewModel.load()
 
         // Assert
-        XCTAssertEqual(viewModel.state.value?.prayerPoint?.id, "p1")
+        XCTAssertEqual(viewModel.state.value?.trip?.event.id, "behia")
     }
 
     func testLoad_WhenServerReturnsNothing_ShouldBeLoadedAndEmpty() async {
@@ -79,7 +79,7 @@ final class HomeViewModelTests: XCTestCase {
         await viewModel.load(forceReload: true)
 
         // Assert
-        XCTAssertEqual(viewModel.state.value?.prayerPoint?.id, "p1")
+        XCTAssertEqual(viewModel.state.value?.trip?.event.id, "behia")
         XCTAssertNotNil(viewModel.toast)
     }
 
@@ -92,9 +92,9 @@ final class HomeViewModelTests: XCTestCase {
             if calls.next() == 1 {
                 await started.open()
                 await release.wait()
-                return .json(#"{"prayerPoint": {"id": "old", "body": "Old"}}"#)
+                return .json(SampleStub.homeJSON().replacingOccurrences(of: "behia", with: "old"))
             }
-            return .json(#"{"prayerPoint": {"id": "new", "body": "New"}}"#)
+            return .json(SampleStub.homeJSON().replacingOccurrences(of: "behia", with: "new"))
         }
         let first = Task { await viewModel.load() }
         await started.wait()
@@ -105,7 +105,7 @@ final class HomeViewModelTests: XCTestCase {
         await first.value
 
         // Assert
-        XCTAssertEqual(viewModel.state.value?.prayerPoint?.id, "new")
+        XCTAssertEqual(viewModel.state.value?.trip?.event.id, "new")
     }
 
     func testConnectionRestored_WhenHomeFailedOffline_ShouldLoadItAgain() async {
@@ -123,13 +123,218 @@ final class HomeViewModelTests: XCTestCase {
         await viewModel.connectionRestored()
 
         // Assert
-        XCTAssertEqual(viewModel.state.value?.prayerPoint?.id, "p1")
+        XCTAssertEqual(viewModel.state.value?.trip?.event.id, "behia")
+    }
+
+    func testLoad_WhenMediaIsGiven_ShouldHoldTheLoadingStateUntilPhotosAreReady() async {
+        // Arrange
+        let release = Gate()
+        let client = StubHTTPClient { _ in .json(homeJSON) }
+        let viewModel = HomeViewModel(
+            api: HomeAPI(client: client),
+            eventsAPI: EventsAPI(client: client),
+            imageLoader: FakeImageLoader(beforeReturning: { await release.wait() }),
+            snapshotter: FakeSnapshotter(),
+            mediaDeadline: { try? await Task.sleep(for: .seconds(60)) }
+        )
+        let media = HomeViewModel.MediaLayout(
+            tripSize: CGSize(width: 10, height: 10),
+            storySize: CGSize(width: 10, height: 10),
+            scale: 1
+        )
+
+        // Act
+        let task = Task { await viewModel.load(media: media) }
+        await Task.yield()
+        let whileWaiting = viewModel.state
+        await release.open()
+        await task.value
+
+        // Assert
+        XCTAssertEqual(whileWaiting, .loading)
+        XCTAssertNotNil(viewModel.state.value)
+        XCTAssertNotNil(viewModel.tripImage)
+        XCTAssertNotNil(viewModel.storyImage)
+    }
+
+    func testLoad_WhenPhotosAreTooSlow_ShouldShowTheScreenAtTheDeadline() async {
+        // Arrange
+        let never = Gate()
+        let client = StubHTTPClient { _ in .json(homeJSON) }
+        let viewModel = HomeViewModel(
+            api: HomeAPI(client: client),
+            eventsAPI: EventsAPI(client: client),
+            imageLoader: FakeImageLoader(beforeReturning: { await never.wait() }),
+            snapshotter: FakeSnapshotter(),
+            mediaDeadline: {}
+        )
+        let media = HomeViewModel.MediaLayout(
+            tripSize: CGSize(width: 10, height: 10),
+            storySize: CGSize(width: 10, height: 10),
+            scale: 1
+        )
+
+        // Act
+        let task = Task { await viewModel.load(media: media) }
+        while viewModel.state.value == nil {
+            await Task.yield()
+        }
+        task.cancel()
+
+        // Assert
+        XCTAssertNil(viewModel.tripImage)
+        XCTAssertNotNil(viewModel.state.value)
+    }
+
+    func testRefreshCountdown_WhenTheDayChanges_ShouldUpdateTheNumber() async {
+        // Arrange
+        let clock = HomeTestClock(start: ISO8601DateFormatter()
+            .date(from: "2026-11-20T02:00:00Z") ?? .now)
+        let client = StubHTTPClient { _ in .json(homeJSON) }
+        let viewModel = HomeViewModel(
+            api: HomeAPI(client: client),
+            eventsAPI: EventsAPI(client: client),
+            imageLoader: FakeImageLoader(),
+            snapshotter: FakeSnapshotter(),
+            now: { clock.now }
+        )
+        await viewModel.load()
+        let before = viewModel.countdown?.number
+
+        // Act
+        clock.advance(by: 24 * 3600)
+        viewModel.refreshCountdown()
+
+        // Assert
+        XCTAssertEqual(before, "22")
+        XCTAssertEqual(viewModel.countdown?.number, "21")
+    }
+
+    func testSecondsUntilNextManilaMidnight_WhenAnHourBefore_ShouldBeJustOverAnHour() throws {
+        // Arrange: 23:00 in Manila on Nov 20.
+        let date = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-11-20T15:00:00Z"))
+
+        // Act
+        let seconds = HomeViewModel.secondsUntilNextManilaMidnight(from: date)
+
+        // Assert
+        XCTAssertEqual(seconds, 3601, accuracy: 0.5)
+    }
+
+    func testLoad_WhenARefreshChangesThePhoto_ShouldDropTheOldPhotoAtOnce() async {
+        // Arrange: the first load is quick; later photo loads wait.
+        let calls = Counter()
+        let hold = Gate()
+        let replies = Counter()
+        let client = StubHTTPClient { _ in
+            if replies.next() == 1 {
+                return .json(homeJSON)
+            }
+            return .json(homeJSON.replacingOccurrences(of: "23499309", with: "11111111"))
+        }
+        let viewModel = HomeViewModel(
+            api: HomeAPI(client: client),
+            eventsAPI: EventsAPI(client: client),
+            imageLoader: FakeImageLoader(beforeReturning: {
+                if calls.next() > 2 {
+                    await hold.wait()
+                }
+            }),
+            snapshotter: FakeSnapshotter(),
+            mediaDeadline: { try? await Task.sleep(for: .seconds(60)) }
+        )
+        let media = HomeViewModel.MediaLayout(
+            tripSize: CGSize(width: 10, height: 10),
+            storySize: CGSize(width: 10, height: 10),
+            scale: 1
+        )
+        await viewModel.load(media: media)
+        XCTAssertNotNil(viewModel.tripImage)
+
+        // Act
+        let refresh = Task { await viewModel.load(media: media, forceReload: true) }
+        func hasRefreshed() -> Bool {
+            let url = viewModel.state.value?.trip?.event.heroImageURL
+            return url?.absoluteString.contains("11111111") == true
+        }
+        while !hasRefreshed() {
+            await Task.yield()
+        }
+        let whileWaiting = viewModel.tripImage
+        await hold.open()
+        await refresh.value
+
+        // Assert
+        XCTAssertNil(whileWaiting)
+        XCTAssertNotNil(viewModel.tripImage)
     }
 
     private func makeViewModel(
         _ handler: @escaping @Sendable (Endpoint) async throws -> HTTPResponse
     ) -> (HomeViewModel, StubHTTPClient) {
         let client = StubHTTPClient(handler)
-        return (HomeViewModel(api: HomeAPI(client: client)), client)
+        let viewModel = HomeViewModel(
+            api: HomeAPI(client: client),
+            eventsAPI: EventsAPI(client: client),
+            imageLoader: FakeImageLoader(),
+            snapshotter: FakeSnapshotter(),
+            mediaDeadline: { try? await Task.sleep(for: .seconds(60)) }
+        )
+        return (viewModel, client)
+    }
+}
+
+private final class HomeTestClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var current: Date
+
+    init(start: Date) {
+        current = start
+    }
+
+    var now: Date {
+        lock.withLock { current }
+    }
+
+    func advance(by seconds: TimeInterval) {
+        lock.withLock { current = current.addingTimeInterval(seconds) }
+    }
+}
+
+@MainActor
+final class HomeDetailModelsTests: XCTestCase {
+    func testDetailViewModel_WhenAskedTwiceForOneTrip_ShouldReturnTheSameOne() {
+        // Arrange
+        let viewModel = makeViewModel()
+
+        // Act
+        let first = viewModel.detailViewModel(for: "behia")
+        let second = viewModel.detailViewModel(for: "behia")
+
+        // Assert
+        XCTAssertTrue(first === second)
+    }
+
+    func testOpenTripsChanged_WhenATripLeavesTheStack_ShouldFreeItsViewModel() {
+        // Arrange
+        let viewModel = makeViewModel()
+        weak var weakDetail: EventDetailViewModel?
+        autoreleasepool { weakDetail = viewModel.detailViewModel(for: "behia") }
+
+        // Act
+        viewModel.openTripsChanged(to: [])
+
+        // Assert
+        XCTAssertNil(weakDetail)
+    }
+
+    private func makeViewModel() -> HomeViewModel {
+        let client = StubHTTPClient { _ in .json("{}") }
+        return HomeViewModel(
+            api: HomeAPI(client: client),
+            eventsAPI: EventsAPI(client: client),
+            imageLoader: FakeImageLoader(),
+            snapshotter: FakeSnapshotter()
+        )
     }
 }

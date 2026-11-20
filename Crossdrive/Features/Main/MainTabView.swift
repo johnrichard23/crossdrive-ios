@@ -16,7 +16,7 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: tabSelection) {
-            HomeView(viewModel: models.home) { coordinator.openEvent($0) }
+            HomeView(viewModel: models.home, path: $coordinator.homePath)
                 .tabItem { Label(MainTab.home.title, image: MainTab.home.iconName) }
                 .tag(MainTab.home)
 
@@ -69,9 +69,10 @@ struct MainTabView: View {
             set: { newValue in
                 if newValue == coordinator.selectedTab {
                     switch newValue {
+                    case .home: coordinator.homePath.removeAll()
                     case .events: coordinator.eventsPath.removeAll()
                     case .ministries: coordinator.ministriesPath.removeAll()
-                    case .home, .pray, .profile: break
+                    case .pray, .profile: break
                     }
                 }
                 coordinator.selectedTab = newValue

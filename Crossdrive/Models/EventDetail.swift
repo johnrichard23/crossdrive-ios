@@ -23,19 +23,7 @@ struct EventDetail: Hashable, Sendable {
 
     /// What the pinned bar offers, in the order the rules apply.
     var bar: EventBar {
-        if let registration, registration.status == .going {
-            return .going(paid: registration.isPaid, waiverSigned: registration.waiverSigned)
-        }
-        if registration?.status == .waitlisted {
-            return .waitlisted
-        }
-        if event.isClosedToSignUp {
-            return .closed
-        }
-        if event.isFull || event.hasNoSlotsLeft {
-            return .full
-        }
-        return .register
+        event.bar(registration: registration)
     }
 
     var isGoing: Bool {

@@ -74,7 +74,7 @@ struct EventMapper: Sendable {
         )
     }
 
-    private func registration(_ dto: EventDetailDTO.MeDTO) -> EventRegistration? {
+    func registration(_ dto: EventDetailDTO.MeDTO) -> EventRegistration? {
         let status: EventRegistration.Status
         switch dto.status {
         case "going": status = .going
@@ -88,7 +88,7 @@ struct EventMapper: Sendable {
         )
     }
 
-    private func meetup(_ dto: EventDetailDTO.MeetupDTO) -> EventMeetup? {
+    func meetup(_ dto: EventDetailDTO.MeetupDTO) -> EventMeetup? {
         guard let point = dto.point, !point.isEmpty, let time = dto.time, !time.isEmpty
         else { return nil }
         return EventMeetup(point: point, time: time)

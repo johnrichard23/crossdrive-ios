@@ -43,6 +43,7 @@ final class AppCoordinator {
     var presentedLink: PresentedLink?
     var selectedTab = MainTab.home
     var itemsPath: [SampleRoute] = []
+    var homePath: [EventsRoute] = []
     var eventsPath: [EventsRoute] = []
     var ministriesPath: [MinistriesRoute] = []
 
@@ -192,6 +193,7 @@ final class AppCoordinator {
             presentedLink = nil
             selectedTab = .home
             itemsPath = []
+            homePath = []
             eventsPath = []
             ministriesPath = []
             route()
