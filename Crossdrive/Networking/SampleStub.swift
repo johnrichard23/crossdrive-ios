@@ -17,6 +17,16 @@ enum SampleStub {
     ]
     """
 
+    /// Four pictures for the sign-in sheet.
+    static let welcomePhotosJSON = """
+    {"photos": [
+      "https://images.pexels.com/photos/13011294/pexels-photo-13011294.jpeg?auto=compress&w=400",
+      "https://images.pexels.com/photos/8613091/pexels-photo-8613091.jpeg?auto=compress&w=400",
+      "https://images.pexels.com/photos/1739842/pexels-photo-1739842.jpeg?auto=compress&w=400",
+      "https://images.pexels.com/photos/23499309/pexels-photo-23499309.jpeg?auto=compress&w=400"
+    ]}
+    """
+
     /// The Home reply; `-stub-home-going` shows the same trip for a person who is going.
     static func homeJSON(going: Bool = false) -> String {
         let registration = going
@@ -212,28 +222,52 @@ enum SampleStub {
     static func handle(_ endpoint: Endpoint) async throws -> HTTPResponse {
         switch (endpoint.method, endpoint.path) {
         case (.get, "items"):
-            return .json(itemsJSON)
+            .json(itemsJSON)
         case (.get, _) where endpoint.path.hasPrefix("events/"):
-            return .json(eventDetailJSON(for: String(endpoint.path.dropFirst("events/".count))))
+            .json(eventDetailJSON(for: String(endpoint.path.dropFirst("events/".count))))
         case (.get, _) where endpoint.path.hasPrefix("ministries/"):
-            return .json(ministryDetailJSON)
+            .json(ministryDetailJSON)
         case (.get, "ministries"):
-            return .json(ministriesJSON)
+            .json(ministriesJSON)
         case (.get, "events"):
-            return .json(eventsJSON)
+            .json(eventsJSON)
         case (.get, "home"):
-            return .json(homeJSON(going: CommandLine.arguments.contains("-stub-home-going")))
-        case (.post, "auth/sign-in"):
-            let fields = endpoint.body.flatMap { try? JSONDecoder().decode(
-                [String: String].self,
-                from: $0
-            ) }
-            if fields?["password"] == "wrong" {
+            .json(homeJSON(going: CommandLine.arguments.contains("-stub-home-going")))
+        case (.post, _) where endpoint.path.hasPrefix("auth/") && endpoint.path != "auth/refresh",
+             (.get, "auth/welcome-photos"):
+            authReply(for: endpoint)
+        case (.post, "auth/refresh"):
+            .json(#"{"accessToken": "stub-access-2", "expiresIn": 3600}"#)
+        default:
+            .json("{}")
+        }
+    }
+
+    /// The sign-in, sign-up and reset replies. Try these in the sign-in sheet:
+    /// an email with "new" is a first visit, with "verify" asks to check the
+    /// email; the password "wrong" is rejected and "locked" is paused.
+    private static func authReply(for endpoint: Endpoint) -> HTTPResponse {
+        let fields = endpoint.body.flatMap {
+            try? JSONDecoder().decode([String: String].self, from: $0)
+        } ?? [:]
+        let email = (fields["email"] ?? "").lowercased()
+        switch endpoint.path {
+        case "auth/sign-in":
+            if fields["password"] == "wrong" {
                 return .json(#"{"message": "Incorrect email or password."}"#, status: 401)
             }
+            if fields["password"] == "locked" {
+                return .json(#"{"message": "Too many tries."}"#, status: 429)
+            }
             return .json(signInJSON)
-        case (.post, "auth/refresh"):
-            return .json(#"{"accessToken": "stub-access-2", "expiresIn": 3600}"#)
+        case "auth/email-status":
+            return .json(#"{"exists": \#(email.contains("new") ? "false" : "true")}"#)
+        case "auth/sign-up":
+            return .json(
+                #"{"verificationRequired": \#(email.contains("verify") ? "true" : "false")}"#
+            )
+        case "auth/welcome-photos":
+            return .json(welcomePhotosJSON)
         default:
             return .json("{}")
         }
