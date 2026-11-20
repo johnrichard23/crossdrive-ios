@@ -43,6 +43,8 @@ final class AppCoordinator {
     var presentedLink: PresentedLink?
     var selectedTab = MainTab.home
     var itemsPath: [SampleRoute] = []
+    var eventsPath: [EventsRoute] = []
+    var ministriesPath: [MinistriesRoute] = []
 
     let container: DependencyContainer
 
@@ -190,6 +192,8 @@ final class AppCoordinator {
             presentedLink = nil
             selectedTab = .home
             itemsPath = []
+            eventsPath = []
+            ministriesPath = []
             route()
             mainResetToken = UUID()
         }
@@ -213,6 +217,12 @@ final class AppCoordinator {
 
     /// A link can arrive before there is anywhere to put it (during launch,
     /// onboarding or sign-in). It waits, and opens once the main screen is up.
+    /// Opens an event's detail on the Events tab, with the list behind it.
+    func openEvent(_ id: Event.ID) {
+        selectedTab = .events
+        eventsPath = [.detail(id)]
+    }
+
     private func openPendingLinkIfPossible() {
         guard flow == .main, let pending = pendingLink else { return }
         pendingLink = nil
