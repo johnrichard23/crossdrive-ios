@@ -14,7 +14,14 @@ final class DependencyContainer: Sendable {
     let session: any AuthSession
     let client: any HTTPClient
     let sampleAPI: SampleAPI
+    let homeAPI: HomeAPI
+    let eventsAPI: EventsAPI
+    let ministriesAPI: MinistriesAPI
     let services: PlatformServices
+    /// Downloads and decodes photos that must be ready before a screen shows.
+    let imageLoader: any ImageLoading
+    /// Draws the still map of a place.
+    let mapSnapshotter: any MapSnapshotting
 
     private let clearHTTPSession: @Sendable () async -> Void
 
@@ -28,6 +35,8 @@ final class DependencyContainer: Sendable {
         session: any AuthSession,
         client: any HTTPClient,
         services: PlatformServices,
+        imageLoader: any ImageLoading,
+        mapSnapshotter: any MapSnapshotting,
         clearHTTPSession: @escaping @Sendable () async -> Void = {}
     ) {
         self.features = features
@@ -37,8 +46,13 @@ final class DependencyContainer: Sendable {
         self.session = session
         self.client = client
         self.services = services
+        self.imageLoader = imageLoader
+        self.mapSnapshotter = mapSnapshotter
         self.clearHTTPSession = clearHTTPSession
         sampleAPI = SampleAPI(client: client)
+        homeAPI = HomeAPI(client: client)
+        eventsAPI = EventsAPI(client: client)
+        ministriesAPI = MinistriesAPI(client: client)
     }
 
     /// The real graph for the running app.
@@ -77,6 +91,8 @@ final class DependencyContainer: Sendable {
             session: session,
             client: client,
             services: services,
+            imageLoader: HTTPImageLoader(client: client),
+            mapSnapshotter: AppleMapSnapshotter(),
             clearHTTPSession: { await client.clearSession() }
         )
     }
@@ -91,6 +107,8 @@ final class DependencyContainer: Sendable {
         onboarding: OnboardingStore = OnboardingStore(),
         client: any HTTPClient = StubHTTPClient(SampleStub.handle),
         services: PlatformServices = .preview,
+        imageLoader: any ImageLoading = URLSessionImageLoader(),
+        mapSnapshotter: any MapSnapshotting = AppleMapSnapshotter(),
         clearHTTPSession: @escaping @Sendable () async -> Void = {}
     ) -> DependencyContainer {
         let secrets = InMemorySecretStore()
@@ -102,6 +120,8 @@ final class DependencyContainer: Sendable {
             session: session ?? makeSession(features: features, client: client, secrets: secrets),
             client: client,
             services: services,
+            imageLoader: imageLoader,
+            mapSnapshotter: mapSnapshotter,
             clearHTTPSession: clearHTTPSession
         )
     }

@@ -56,6 +56,9 @@ enum CDColor {
     static let pineGround = DesignSystem.color(light: 0x151E1D, dark: 0x0E1514)
     static let onPine = DesignSystem.color(light: 0xEEF2F1, dark: 0xEEF2F1)
     static let onPineMuted = DesignSystem.color(light: 0xA3AFAE, dark: 0xA3AFAE)
+    /// The band of facts under the trip photo.
+    static let pineBand = DesignSystem.color(light: 0x1F2E2C, dark: 0x243634)
+    static let pineDivider = DesignSystem.color(light: 0x3A4B49, dark: 0x34504D)
     static let pineLine = DesignSystem.color(light: 0x6F7E7D, dark: 0x6F7E7D)
     static let lanesOnPine = DesignSystem.color(light: 0x9C7AD6, dark: 0x9C7AD6)
 }

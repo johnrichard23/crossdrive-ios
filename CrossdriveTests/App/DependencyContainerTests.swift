@@ -40,6 +40,19 @@ final class DependencyContainerTests: XCTestCase {
         XCTAssertTrue(container.session is TokenAuthSession)
     }
 
+    // MARK: - Shared services
+
+    func testInit_WhenBuiltForTheApp_ShouldLoadPhotosThroughTheHTTPClient() {
+        // Act
+        let container = DependencyContainer(
+            features: AppFeatures(authentication: .none),
+            environment: .preview
+        )
+
+        // Assert
+        XCTAssertTrue(container.imageLoader is HTTPImageLoader)
+    }
+
     // MARK: - Sign out
 
     func testSignOut_WhenSignedIn_ShouldEndTheSessionAndClearTheHTTPSession() async throws {
