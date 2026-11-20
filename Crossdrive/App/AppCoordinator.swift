@@ -13,8 +13,6 @@ final class AppCoordinator {
     /// A request to sign in, shown as a sheet over the current screen.
     struct LoginGate: Identifiable {
         let id = UUID()
-        /// The sheet's one view model, made when it is asked for and freed with the gate.
-        let viewModel: EntryViewModel
     }
 
     /// Something a notification tap opens, shown as a sheet over the current screen.
@@ -119,22 +117,14 @@ final class AppCoordinator {
     /// the action runs once they have signed in. Cancelling the gate drops the
     /// action; it is never retried on its own. Anywhere else there is nothing
     /// to ask, so the action runs at once.
-    func requireAccount(
-        for trip: GateTrip? = nil,
-        _ action: @escaping @MainActor () -> Void
-    ) {
+    func requireAccount(_ action: @escaping @MainActor () -> Void) {
         guard container.features.authentication == .optional, session == .signedOut else {
             action()
             return
         }
         pendingAction = action
         if loginGate == nil {
-            loginGate = LoginGate(viewModel: EntryViewModel(
-                trip: trip,
-                accountAPI: container.accountAPI,
-                imageLoader: container.imageLoader,
-                signIn: { [weak self] credentials in try await self?.signIn(credentials) }
-            ))
+            loginGate = LoginGate()
         }
     }
 

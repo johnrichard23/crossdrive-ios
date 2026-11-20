@@ -17,7 +17,6 @@ final class DependencyContainer: Sendable {
     let homeAPI: HomeAPI
     let eventsAPI: EventsAPI
     let ministriesAPI: MinistriesAPI
-    let accountAPI: AccountAPI
     let services: PlatformServices
     /// Downloads and decodes photos that must be ready before a screen shows.
     let imageLoader: any ImageLoading
@@ -54,7 +53,6 @@ final class DependencyContainer: Sendable {
         homeAPI = HomeAPI(client: client)
         eventsAPI = EventsAPI(client: client)
         ministriesAPI = MinistriesAPI(client: client)
-        accountAPI = AccountAPI(client: client)
     }
 
     /// The real graph for the running app.

@@ -22,13 +22,18 @@ struct RootView: View {
         .animation(DesignSystem.Motion.enter, value: coordinator.flow)
         // The banner pushes the screen down: movement, so none under Reduce Motion.
         .animation(reduceMotion ? nil : DesignSystem.Motion.enter, value: coordinator.isOnline)
-        .environment(\.accountGate, AccountGate { trip, action in
-            coordinator.requireAccount(for: trip, action)
-        })
+        .environment(\.accountGate, AccountGate { coordinator.requireAccount($0) })
         .environment(\.isOnline, coordinator.isOnline)
         .environment(\.featureFlags, coordinator.container.services.flags)
-        .sheet(item: $coordinator.loginGate, onDismiss: coordinator.loginGateDidDismiss) { gate in
-            EntryView(viewModel: gate.viewModel) { coordinator.loginGate = nil }
+        .sheet(item: $coordinator.loginGate, onDismiss: coordinator.loginGateDidDismiss) { _ in
+            NavigationStack {
+                SignInView(viewModel: SignInViewModel(signIn: coordinator.signIn))
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") { coordinator.loginGate = nil }
+                        }
+                    }
+            }
         }
         .sheet(item: $coordinator.presentedLink) { presented in
             switch presented.link {

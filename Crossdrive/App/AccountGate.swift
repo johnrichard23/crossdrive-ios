@@ -9,19 +9,18 @@ import SwiftUI
 /// A guest in an app with optional accounts: the login gate opens, and the
 /// action runs after they sign in.
 struct AccountGate: Sendable {
-    private let require: @MainActor (GateTrip?, @escaping @MainActor () -> Void) -> Void
+    private let require: @MainActor (@escaping @MainActor () -> Void) -> Void
 
-    init(_ require: @escaping @MainActor (GateTrip?, @escaping @MainActor () -> Void) -> Void) {
+    init(_ require: @escaping @MainActor (@escaping @MainActor () -> Void) -> Void) {
         self.require = require
     }
 
     /// Runs the action at once. The default, for previews.
-    static let open = AccountGate { _, action in action() }
+    static let open = AccountGate { $0() }
 
-    /// `trip` is what the person was looking at, so the sheet can remind them.
     @MainActor
-    func callAsFunction(for trip: GateTrip? = nil, _ action: @escaping @MainActor () -> Void) {
-        require(trip, action)
+    func callAsFunction(_ action: @escaping @MainActor () -> Void) {
+        require(action)
     }
 }
 
