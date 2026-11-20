@@ -8,6 +8,7 @@ import SwiftUI
 /// it covers, what I would do, what to bring.
 struct EventDetailView: View {
     @State private var viewModel: EventDetailViewModel
+    private let source: EventDetailSource
     private let onRegister: () -> Void
     private let onOpenTrip: () -> Void
 
@@ -29,10 +30,12 @@ struct EventDetailView: View {
 
     init(
         viewModel: EventDetailViewModel,
+        source: EventDetailSource = .events,
         onRegister: @escaping () -> Void = {},
         onOpenTrip: @escaping () -> Void = {}
     ) {
         _viewModel = State(initialValue: viewModel)
+        self.source = source
         self.onRegister = onRegister
         self.onOpenTrip = onOpenTrip
     }
@@ -86,7 +89,7 @@ struct EventDetailView: View {
                 "This trip isn't available.",
                 message: "It may be closed or taken down. See the trips that are open.",
                 systemImage: "calendar",
-                actionTitle: "See events",
+                actionTitle: source.unavailableActionTitle,
                 action: { dismiss() }
             )
         case .failed:
@@ -143,7 +146,7 @@ struct EventDetailView: View {
     private var floatingButtons: some View {
         HStack {
             floatingButton(
-                label: "Back to Events",
+                label: source.backLabel,
                 action: { dismiss() },
                 icon: { DSIcon(.chevronLeft, role: .body) }
             )
@@ -414,6 +417,27 @@ private struct ScrollOffsetMarker: View {
                 )
             }
             .frame(height: 0)
+        }
+    }
+}
+
+/// Where a trip was opened from, so its back control and its "not available"
+/// action name the place they return to.
+enum EventDetailSource {
+    case events
+    case home
+
+    var backLabel: LocalizedStringKey {
+        switch self {
+        case .events: "Back to Events"
+        case .home: "Back to Home"
+        }
+    }
+
+    var unavailableActionTitle: String {
+        switch self {
+        case .events: "See events"
+        case .home: "Go back"
         }
     }
 }

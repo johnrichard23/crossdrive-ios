@@ -20,7 +20,9 @@ struct HomeTicket: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            top
+            Button(action: onOpenTrip) { top }
+                .buttonStyle(.plain)
+                .accessibilityHint(Text("Opens the trip"))
             bottom
                 .overlay(alignment: .top) { tornEdge }
         }

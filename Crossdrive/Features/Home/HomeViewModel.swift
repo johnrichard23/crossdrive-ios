@@ -76,7 +76,7 @@ final class HomeViewModel {
             } else {
                 show(summary)
                 if let media {
-                    await loadImages(of: summary, media: media)
+                    await loadImages(of: summary, media: media, token: token)
                 }
             }
         } catch {
@@ -116,6 +116,40 @@ final class HomeViewModel {
         countdown = state.value?.trip?.countdown(now: now())
     }
 
+    /// Keeps the countdown right while Home stays on screen: waits for the next
+    /// midnight in Manila, then works the number out again. Stops when the
+    /// caller's task is cancelled (the person left).
+    func keepCountdownCurrent() async {
+        while !Task.isCancelled {
+            let wait = Self.secondsUntilNextManilaMidnight(from: now())
+            do {
+                try await Task.sleep(for: .seconds(wait))
+            } catch {
+                return
+            }
+            refreshCountdown()
+        }
+    }
+
+    /// Seconds from `date` to the next midnight in Manila (a second past it, so
+    /// the new day has surely started).
+    static func secondsUntilNextManilaMidnight(from date: Date) -> TimeInterval {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Manila") ?? .current
+        let midnight = calendar.nextDate(
+            after: date,
+            matching: DateComponents(hour: 0, minute: 0, second: 0),
+            matchingPolicy: .nextTime
+        )
+        return max((midnight?.timeIntervalSince(date) ?? 3600) + 1, 1)
+    }
+
+    /// The screen's size changed: make the photos again at the new size.
+    func refreshImages(media: MediaLayout) async {
+        guard let summary = state.value else { return }
+        await loadImages(of: summary, media: media, token: loadToken)
+    }
+
     /// The device is back online: retry what failed because it wasn't.
     func connectionRestored(media: MediaLayout? = nil) async {
         switch state {
@@ -132,7 +166,7 @@ final class HomeViewModel {
         token: Int
     ) async {
         await MediaGate.reveal(
-            after: imageLoads(of: summary, media: media),
+            after: imageLoads(of: summary, media: media, token: token),
             deadline: mediaDeadline
         ) { [weak self] in
             guard let self, token == loadToken, state.value == nil else { return }
@@ -141,9 +175,9 @@ final class HomeViewModel {
     }
 
     /// A refresh keeps the screen up and only swaps the photos when they arrive.
-    private func loadImages(of summary: HomeSummary, media: MediaLayout) async {
+    private func loadImages(of summary: HomeSummary, media: MediaLayout, token: Int) async {
         await withTaskGroup(of: Void.self) { group in
-            for load in imageLoads(of: summary, media: media) {
+            for load in imageLoads(of: summary, media: media, token: token) {
                 group.addTask { await load() }
             }
         }
@@ -151,7 +185,8 @@ final class HomeViewModel {
 
     private func imageLoads(
         of summary: HomeSummary,
-        media: MediaLayout
+        media: MediaLayout,
+        token: Int
     ) -> [@Sendable () async -> Void] {
         let loader = imageLoader
         var loads: [@Sendable () async -> Void] = []
@@ -159,38 +194,42 @@ final class HomeViewModel {
             let pixels = ImageDownsampler.maxPixels(for: media.tripSize, scale: media.scale)
             loads.append { [weak self] in
                 let image = await loader.image(for: url, maxPixels: pixels)
-                await self?.setTripImage(image)
+                await self?.setTripImage(image, token: token)
             }
         }
         if let url = summary.latestStory?.imageURL {
             let pixels = ImageDownsampler.maxPixels(for: media.storySize, scale: media.scale)
             loads.append { [weak self] in
                 let image = await loader.image(for: url, maxPixels: pixels)
-                await self?.setStoryImage(image)
+                await self?.setStoryImage(image, token: token)
             }
         }
         return loads
     }
 
-    private func setTripImage(_ image: UIImage?) {
-        if let image {
+    /// A photo that arrives after a newer load began belongs to older content: drop it.
+    private func setTripImage(_ image: UIImage?, token: Int) {
+        if let image, token == loadToken {
             tripImage = image
         }
     }
 
-    private func setStoryImage(_ image: UIImage?) {
-        if let image {
+    private func setStoryImage(_ image: UIImage?, token: Int) {
+        if let image, token == loadToken {
             storyImage = image
         }
     }
 
     private func show(_ summary: HomeSummary) {
-        // A refresh that no longer has a photo must not keep the old one.
-        if summary.trip?.event.heroImageURL == nil {
-            tripImage = nil
-        }
-        if summary.latestStory?.imageURL == nil {
-            storyImage = nil
+        // A photo is only kept for the same address: a different or missing
+        // one clears it, so the card never shows another trip's picture.
+        if let previous = state.value {
+            if previous.trip?.event.heroImageURL != summary.trip?.event.heroImageURL {
+                tripImage = nil
+            }
+            if previous.latestStory?.imageURL != summary.latestStory?.imageURL {
+                storyImage = nil
+            }
         }
         state = .loaded(summary)
         countdown = summary.trip?.countdown(now: now())

@@ -34,7 +34,7 @@ struct HomeView: View {
             .navigationDestination(for: EventsRoute.self) { route in
                 switch route {
                 case let .detail(id):
-                    EventDetailView(viewModel: viewModel.detailViewModel(for: id))
+                    EventDetailView(viewModel: viewModel.detailViewModel(for: id), source: .home)
                 }
             }
         }
@@ -55,6 +55,10 @@ struct HomeView: View {
                 case let .detail(id): id
                 }
             })
+        }
+        .task { await viewModel.keepCountdownCurrent() }
+        .onChange(of: containerWidth) { _, _ in
+            Task { await viewModel.refreshImages(media: mediaLayout) }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {

@@ -210,6 +210,65 @@ final class HomeViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.countdown?.number, "21")
     }
 
+    func testSecondsUntilNextManilaMidnight_WhenAnHourBefore_ShouldBeJustOverAnHour() throws {
+        // Arrange: 23:00 in Manila on Nov 20.
+        let date = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-11-20T15:00:00Z"))
+
+        // Act
+        let seconds = HomeViewModel.secondsUntilNextManilaMidnight(from: date)
+
+        // Assert
+        XCTAssertEqual(seconds, 3601, accuracy: 0.5)
+    }
+
+    func testLoad_WhenARefreshChangesThePhoto_ShouldDropTheOldPhotoAtOnce() async {
+        // Arrange: the first load is quick; later photo loads wait.
+        let calls = Counter()
+        let hold = Gate()
+        let replies = Counter()
+        let client = StubHTTPClient { _ in
+            if replies.next() == 1 {
+                return .json(homeJSON)
+            }
+            return .json(homeJSON.replacingOccurrences(of: "23499309", with: "11111111"))
+        }
+        let viewModel = HomeViewModel(
+            api: HomeAPI(client: client),
+            eventsAPI: EventsAPI(client: client),
+            imageLoader: FakeImageLoader(beforeReturning: {
+                if calls.next() > 2 {
+                    await hold.wait()
+                }
+            }),
+            snapshotter: FakeSnapshotter(),
+            mediaDeadline: { try? await Task.sleep(for: .seconds(60)) }
+        )
+        let media = HomeViewModel.MediaLayout(
+            tripSize: CGSize(width: 10, height: 10),
+            storySize: CGSize(width: 10, height: 10),
+            scale: 1
+        )
+        await viewModel.load(media: media)
+        XCTAssertNotNil(viewModel.tripImage)
+
+        // Act
+        let refresh = Task { await viewModel.load(media: media, forceReload: true) }
+        func hasRefreshed() -> Bool {
+            let url = viewModel.state.value?.trip?.event.heroImageURL
+            return url?.absoluteString.contains("11111111") == true
+        }
+        while !hasRefreshed() {
+            await Task.yield()
+        }
+        let whileWaiting = viewModel.tripImage
+        await hold.open()
+        await refresh.value
+
+        // Assert
+        XCTAssertNil(whileWaiting)
+        XCTAssertNotNil(viewModel.tripImage)
+    }
+
     private func makeViewModel(
         _ handler: @escaping @Sendable (Endpoint) async throws -> HTTPResponse
     ) -> (HomeViewModel, StubHTTPClient) {
