@@ -145,14 +145,7 @@ struct EventsView: View {
     }
 
     private var skeleton: some View {
-        ScrollView {
-            VStack(spacing: theme.spacing.groupGap) {
-                ForEach(0 ..< 3, id: \.self) { _ in DSSkeletonCard() }
-            }
-            .screenMargins()
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(Text("Loading"))
-        }
+        EventsSkeleton()
     }
 
     @ViewBuilder private var list: some View {
