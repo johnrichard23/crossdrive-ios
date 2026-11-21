@@ -21,6 +21,8 @@ struct CrossdriveApp: App {
             UNUserNotificationCenter.current().delegate = handler
             notificationHandler = handler
 
+            FacebookSignInService.applicationDidLaunch()
+
             AppLog.app.info("Launching in \(environment.kind.rawValue, privacy: .public)")
         } catch {
             launch = .failure(error)
@@ -56,6 +58,11 @@ struct CrossdriveApp: App {
         /// so offline banners and states can be checked in the simulator.
         static func debugServices() -> PlatformServices {
             var services = PlatformServices.system
+            // With canned replies there is no Facebook app to open: its button shows
+            // and answers with a made-up token, so the sheet can be tried.
+            if wantsStubAPI(arguments: CommandLine.arguments, defaults: .standard) {
+                services.facebook = FakeSocialSignIn()
+            }
             if CommandLine.arguments.contains("-simulate-offline") {
                 let connectivity = FakeConnectivity()
                 Task { await connectivity.send(false) }
@@ -85,6 +92,7 @@ struct CrossdriveApp: App {
             // Set once, here.
             .theme(.crossdrive)
             .toggleStyle(.crossdrive)
+            .onOpenURL { FacebookSignInService.handle($0) }
         }
     }
 }

@@ -9,11 +9,12 @@ import SwiftUI
 struct EventDetailView: View {
     @State private var viewModel: EventDetailViewModel
     private let source: EventDetailSource
-    private let onRegister: () -> Void
+    private let onRegister: @MainActor () -> Void
     private let onOpenTrip: () -> Void
 
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accountGate) private var accountGate
     @Environment(\.isOnline) private var isOnline
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.displayScale) private var displayScale
@@ -31,7 +32,7 @@ struct EventDetailView: View {
     init(
         viewModel: EventDetailViewModel,
         source: EventDetailSource = .events,
-        onRegister: @escaping () -> Void = {},
+        onRegister: @escaping @MainActor () -> Void = {},
         onOpenTrip: @escaping () -> Void = {}
     ) {
         _viewModel = State(initialValue: viewModel)
@@ -217,7 +218,7 @@ struct EventDetailView: View {
                     if dynamicTypeSize.isAccessibilitySize {
                         EventPinnedBar(
                             detail: detail,
-                            onRegister: onRegister,
+                            onRegister: { accountGate(for: detail.event.gateTrip, onRegister) },
                             onOpenTrip: onOpenTrip
                         )
                         .padding(.horizontal, -theme.spacing.screenMarginCompact)
@@ -233,9 +234,13 @@ struct EventDetailView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             // At accessibility sizes the bar would fill the screen, so it scrolls with the page.
             if !dynamicTypeSize.isAccessibilitySize {
-                EventPinnedBar(detail: detail, onRegister: onRegister, onOpenTrip: onOpenTrip)
-                    .background(.regularMaterial)
-                    .overlay(alignment: .top) { Rectangle().fill(theme.separator).frame(height: 1) }
+                EventPinnedBar(
+                    detail: detail,
+                    onRegister: { accountGate(for: detail.event.gateTrip, onRegister) },
+                    onOpenTrip: onOpenTrip
+                )
+                .background(.regularMaterial)
+                .overlay(alignment: .top) { Rectangle().fill(theme.separator).frame(height: 1) }
             }
         }
     }

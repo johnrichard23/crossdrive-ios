@@ -69,6 +69,53 @@ final class TokenAuthSessionTests: XCTestCase {
         XCTAssertEqual(body, ["email": "dana@example.com", "password": "secret"])
     }
 
+    func testSignInWithSocial_WhenCalled_ShouldPostTheProviderTokenAndKeepTheSession() async throws {
+        // Arrange
+        let (session, client) = makeSession { _ in .json(signInReply) }
+        let credential = SocialCredential(
+            provider: .facebook,
+            token: "identity",
+            nonce: "n1",
+            accessToken: nil
+        )
+
+        // Act
+        let user = try await session.signIn(with: credential)
+
+        // Assert
+        XCTAssertEqual(user, dana)
+        let request = try XCTUnwrap(client.requests.first)
+        XCTAssertEqual(request.path, "auth/sign-in/social")
+        let body = try JSONSerialization.jsonObject(with: XCTUnwrap(request.body)) as? [String: Any]
+        let idToken = body?["idToken"] as? [String: Any]
+        XCTAssertEqual(body?["provider"] as? String, "facebook")
+        XCTAssertEqual(idToken?["token"] as? String, "identity")
+        XCTAssertEqual(idToken?["nonce"] as? String, "n1")
+        let token = await session.accessToken()
+        XCTAssertEqual(token, "a1")
+    }
+
+    func testSignInWithSocial_WhenServerRejectsIt_ShouldThrowAndStoreNothing() async {
+        // Arrange
+        let (session, _) = makeSession { _ in .json("{}", status: 401) }
+        let credential = SocialCredential(
+            provider: .facebook,
+            token: "bad",
+            nonce: nil,
+            accessToken: nil
+        )
+
+        // Act and Assert
+        do {
+            _ = try await session.signIn(with: credential)
+            XCTFail("signIn should have thrown")
+        } catch {
+            XCTAssertEqual(error as? AuthError, .invalidCredentials)
+        }
+        let token = await session.accessToken()
+        XCTAssertNil(token)
+    }
+
     func testSignIn_WhenServerRejectsThePassword_ShouldThrowInvalidCredentialsAndStoreNothing(
     ) async {
         // Arrange

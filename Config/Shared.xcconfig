@@ -9,3 +9,15 @@ CURRENT_PROJECT_VERSION = 1
 IPHONEOS_DEPLOYMENT_TARGET = 17.0
 TARGETED_DEVICE_FAMILY = 1
 SWIFT_VERSION = 6.0
+
+// Sign in with Apple. The App ID also needs the capability turned on in the
+// Apple Developer account, or Apple refuses the sign-in on a real phone.
+CODE_SIGN_ENTITLEMENTS = Config/Crossdrive.entitlements
+
+// Facebook sign-in stays off while FACEBOOK_APP_ID is empty. Set both from the
+// app's page on developers.facebook.com (Settings > Basic and Advanced). The
+// URL scheme fb<APP_ID> goes into Info.plist's CFBundleURLSchemes together with the id
+// (never as a bare "fb", which would catch other apps' fb:// links). The client token is not a secret, but keep it in the environment's own file
+// (Debug / Staging / Release.xcconfig) so each environment can use its own app.
+FACEBOOK_APP_ID =
+FACEBOOK_CLIENT_TOKEN =

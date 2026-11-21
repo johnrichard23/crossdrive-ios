@@ -63,6 +63,53 @@ final class AppCoordinatorAccountTests: XCTestCase {
         XCTAssertEqual(ran.next(), 1, "the action should never have run")
     }
 
+    func testRequireAccount_WhenAnotherRequestComesWhileTheGateIsOpen_ShouldKeepTheFirst() async {
+        // Arrange
+        let coordinator = await startedCoordinator(AppFeatures(authentication: .optional))
+        let first = Counter()
+        let second = Counter()
+        coordinator.requireAccount(for: GateTrip(title: "A", detail: "", imageURL: nil)) {
+            _ = first.next()
+        }
+        let gate = coordinator.loginGate?.id
+
+        // Act
+        coordinator.requireAccount(for: GateTrip(title: "B", detail: "", imageURL: nil)) {
+            _ = second.next()
+        }
+
+        // Assert
+        XCTAssertEqual(coordinator.loginGate?.id, gate)
+        XCTAssertEqual(coordinator.loginGate?.viewModel.trip?.title, "A")
+        XCTAssertEqual(second.next(), 1, "the second action should never be held or run")
+    }
+
+    func testGateSignIn_WhenTheGateWasCancelledWhileSigningIn_ShouldDropTheSession() async {
+        // Arrange
+        let session = FakeAuthSession(signInResult: .success(dana))
+        let coordinator = await startedCoordinator(
+            AppFeatures(authentication: .optional),
+            session: session
+        )
+        let ran = Counter()
+        coordinator.requireAccount { _ = ran.next() }
+        let viewModel = coordinator.loginGate?.viewModel
+        viewModel?.email = "dana@example.com"
+        viewModel?.password = "secret"
+
+        // Act: Cancel is tapped, then the request that was out comes back.
+        coordinator.loginGate = nil
+        coordinator.loginGateDidDismiss()
+        await viewModel?.signInTapped()
+
+        // Assert
+        await waitUntil { coordinator.session == .signedOut }
+        XCTAssertEqual(coordinator.session, .signedOut)
+        XCTAssertEqual(ran.next(), 1, "the action should never have run")
+        let signOuts = await session.signOutCalls
+        XCTAssertEqual(signOuts, 1)
+    }
+
     func testRequireAccount_WhenAlreadySignedIn_ShouldRunTheActionAtOnce() async {
         // Arrange
         let coordinator = await startedCoordinator(

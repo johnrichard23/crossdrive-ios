@@ -86,7 +86,30 @@ actor TokenAuthSession: AuthSession {
         } catch NetworkError.unauthorized {
             throw AuthError.invalidCredentials
         }
+        return try await start(from: reply)
+    }
 
+    func signIn(with credential: SocialCredential) async throws -> AppUser {
+        let reply: TokensReply
+        do {
+            reply = try await client.send(
+                .post("auth/sign-in/social", body: SocialSignInBody(
+                    provider: credential.provider.rawValue,
+                    idToken: .init(
+                        token: credential.token,
+                        nonce: credential.nonce,
+                        accessToken: credential.accessToken
+                    )
+                ))
+            )
+        } catch NetworkError.unauthorized {
+            throw AuthError.invalidCredentials
+        }
+        return try await start(from: reply)
+    }
+
+    /// Keeps the tokens a sign-in returned and announces the user.
+    private func start(from reply: TokensReply) async throws -> AppUser {
         guard let accessToken = reply.accessToken, !accessToken.isEmpty,
               let refreshToken = reply.refreshToken, !refreshToken.isEmpty,
               let id = reply.user?.id, !id.isEmpty
@@ -227,6 +250,17 @@ private struct StoredSession: Codable {
 private struct SignInBody: Encodable {
     let email: String
     let password: String
+}
+
+private struct SocialSignInBody: Encodable {
+    struct IDToken: Encodable {
+        let token: String
+        let nonce: String?
+        let accessToken: String?
+    }
+
+    let provider: String
+    let idToken: IDToken
 }
 
 private struct RefreshBody: Encodable {
