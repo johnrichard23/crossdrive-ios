@@ -5,19 +5,11 @@ import Foundation
 struct AccountAPI: Sendable {
     let client: any HTTPClient
 
-    /// `POST /auth/email-status` (public, rate limited): whether this email has
-    /// an account. Decides between the password step and the create step. A reply
-    /// without `exists` is an error, never "new".
-    func status(ofEmail email: String) async throws -> AccountStatus {
-        let reply: StatusReply = try await client.send(
-            .post("auth/email-status", body: EmailBody(email: email))
-        )
-        return reply.exists ? .hasAccount : .newEmail
-    }
-
     /// `POST /auth/sign-up` (public): makes the account and records that the person
-    /// agreed to how their details are kept. A 409 is `AuthError.emailAlreadyExists`;
-    /// a reply without `verificationRequired` is an error.
+    /// agreed to how their details are kept. The reply must not tell whether the
+    /// email already had an account: the server answers the same either way and
+    /// emails the owner. A 409 is read as that same answer, so the app never
+    /// shows the difference. A reply without `verificationRequired` is an error.
     func signUp(
         name: String,
         email: String,
@@ -38,7 +30,7 @@ struct AccountAPI: Sendable {
             )
             return reply.verificationRequired ? .needsEmailVerification : .created
         } catch let error as NetworkError where error.statusCode == 409 {
-            throw AuthError.emailAlreadyExists
+            return .needsEmailVerification
         }
     }
 
@@ -53,13 +45,6 @@ struct AccountAPI: Sendable {
         _ = try await client.send(.post("auth/send-verification", body: EmailBody(email: email)))
     }
 
-    /// `GET /auth/welcome-photos` (public): the pictures on the sign-in sheet.
-    /// Optional: the sheet works without them.
-    func welcomePhotos() async throws -> [URL] {
-        let reply: PhotosReply = try await client.send(.get("auth/welcome-photos"))
-        return (reply.photos ?? []).compactMap(URL.init(string:))
-    }
-
     private struct EmailBody: Encodable {
         var email: String
     }
@@ -71,15 +56,7 @@ struct AccountAPI: Sendable {
         var hasAgreed: Bool
     }
 
-    private struct StatusReply: Decodable {
-        var exists: Bool
-    }
-
     private struct SignUpReply: Decodable {
         var verificationRequired: Bool
-    }
-
-    private struct PhotosReply: Decodable {
-        var photos: [String]?
     }
 }

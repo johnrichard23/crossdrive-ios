@@ -86,7 +86,7 @@ final class EntryAccountCreationTests: XCTestCase {
         XCTAssertTrue(rig.signIns.values.isEmpty)
     }
 
-    func testCreateAccountTapped_WhenTheEmailAlreadyHasAnAccount_ShouldMoveToThePasswordStep(
+    func testCreateAccountTapped_WhenTheEmailAlreadyHasAnAccount_ShouldLookLikeAnyOtherSignUp(
     ) async {
         // Arrange
         let rig = makeEntryRig { _ in .json(#"{"message": "exists"}"#, status: 409) }
@@ -97,12 +97,13 @@ final class EntryAccountCreationTests: XCTestCase {
         rig.viewModel.path = [.create]
 
         // Act
-        await rig.viewModel.createAccountTapped()
+        let field = await rig.viewModel.createAccountTapped()
 
-        // Assert
-        XCTAssertEqual(rig.viewModel.path, [.password])
-        XCTAssertEqual(rig.viewModel.password, "")
-        XCTAssertNotNil(rig.viewModel.formError)
+        // Assert: the same "Check your email" step, and no message that says why.
+        XCTAssertNil(field)
+        XCTAssertEqual(rig.viewModel.path, [.create, .checkEmail])
+        XCTAssertNil(rig.viewModel.formError)
+        XCTAssertTrue(rig.signIns.values.isEmpty)
     }
 
     func testCreateAccountTapped_WhenTheFieldsChangeWhileSigningUp_ShouldSignInWithWhatWasSent(

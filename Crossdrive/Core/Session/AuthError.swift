@@ -5,8 +5,6 @@ enum AuthError: Error, Equatable, Sendable {
     case invalidCredentials
     /// Too many wrong tries: sign-in is paused for a while.
     case accountLocked
-    /// Someone already has an account with this email.
-    case emailAlreadyExists
     /// This app has no accounts (`AppFeatures.Authentication.none`).
     case notSupported
 }

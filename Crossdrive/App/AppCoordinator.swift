@@ -136,7 +136,11 @@ final class AppCoordinator {
             trip: trip,
             accountAPI: container.accountAPI,
             imageLoader: container.imageLoader,
-            signIn: { [weak self] credentials in try await self?.signIn(credentials, from: id) }
+            facebook: container.services.facebook,
+            signIn: { [weak self] credentials in try await self?.signIn(credentials, from: id) },
+            signInWithSocial: { [weak self] credential in
+                try await self?.signIn(with: credential, from: id)
+            }
         ))
     }
 
@@ -150,10 +154,19 @@ final class AppCoordinator {
         apply(.signedIn(user))
     }
 
+    private func signIn(with credential: SocialCredential, from gate: LoginGate.ID) async throws {
+        let user = try await container.session.signIn(with: credential)
+        try await finishGateSignIn(user, from: gate)
+    }
+
     /// Signs in for one login gate. If the person cancelled that gate while the
     /// request was out, the session it made is dropped and nothing carries on.
     private func signIn(_ credentials: Credentials, from gate: LoginGate.ID) async throws {
         let user = try await container.session.signIn(credentials)
+        try await finishGateSignIn(user, from: gate)
+    }
+
+    private func finishGateSignIn(_ user: AppUser, from gate: LoginGate.ID) async throws {
         guard loginGate?.id == gate else {
             await signOut()
             throw CancellationError()

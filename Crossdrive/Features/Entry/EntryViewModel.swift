@@ -41,10 +41,6 @@ final class EntryViewModel {
     private(set) var resetNotice: String?
     /// Goes up on every failed attempt; the view plays the error haptic on change.
     private(set) var failureCount = 0
-    /// The pictures on the email step; empty until they load, or if they can't.
-    private(set) var photos: [UIImage] = []
-    /// True until the pictures are in or have failed, so the page keeps their place.
-    private(set) var isLoadingMedia = true
     /// The small picture in the trip reminder.
     private(set) var tripImage: UIImage?
 
@@ -52,7 +48,9 @@ final class EntryViewModel {
 
     private let accountAPI: AccountAPI
     private let imageLoader: any ImageLoading
+    private let facebook: any SocialSignInProviding
     private let signIn: (Credentials) async throws -> Void
+    private let signInWithSocial: (SocialCredential) async throws -> Void
     private let minimumPasswordLength = 8
     /// The details just signed up, kept in memory only while "Check your email"
     /// waits, so signing in can resume once the email is confirmed.
@@ -62,12 +60,16 @@ final class EntryViewModel {
         trip: GateTrip?,
         accountAPI: AccountAPI,
         imageLoader: any ImageLoading,
-        signIn: @escaping (Credentials) async throws -> Void
+        facebook: any SocialSignInProviding = UnavailableSocialSignIn(),
+        signIn: @escaping (Credentials) async throws -> Void,
+        signInWithSocial: @escaping (SocialCredential) async throws -> Void
     ) {
         self.trip = trip
         self.accountAPI = accountAPI
         self.imageLoader = imageLoader
+        self.facebook = facebook
         self.signIn = signIn
+        self.signInWithSocial = signInWithSocial
     }
 
     /// The email without the spaces around it.
@@ -75,32 +77,12 @@ final class EntryViewModel {
         email.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Makes the four pictures and the trip's small picture. Anything that
-    /// can't be had is left out; the sheet works without pictures.
-    func loadMedia(scale: CGFloat) async {
-        defer { isLoadingMedia = false }
-        let urls = await (try? accountAPI.welcomePhotos()) ?? []
-        let loader = imageLoader
-        let cell = ImageDownsampler.maxPixels(for: CGSize(width: 200, height: 112), scale: scale)
+    /// Loads the trip's small picture for the reminder. Without it the
+    /// reminder just has no picture.
+    func loadTripImage(scale: CGFloat) async {
+        guard let url = trip?.imageURL else { return }
         let thumb = ImageDownsampler.maxPixels(for: CGSize(width: 40, height: 40), scale: scale)
-        await withTaskGroup(of: (Int, UIImage?).self) { group in
-            for (index, url) in urls.prefix(4).enumerated() {
-                group.addTask { await (index, loader.image(for: url, maxPixels: cell)) }
-            }
-            if let url = trip?.imageURL {
-                group.addTask { await (-1, loader.image(for: url, maxPixels: thumb)) }
-            }
-            var loaded: [Int: UIImage] = [:]
-            for await (index, image) in group {
-                if let image {
-                    loaded[index] = image
-                }
-            }
-            tripImage = loaded[-1]
-            let ordered = (0 ..< 4).compactMap { loaded[$0] }
-            // A mosaic needs all four; with fewer the sheet shows none.
-            photos = ordered.count == 4 ? ordered : []
-        }
+        tripImage = await imageLoader.image(for: url, maxPixels: thumb)
     }
 
     func emailDidEndEditing() {
@@ -109,39 +91,62 @@ final class EntryViewModel {
 
     // MARK: - Email step
 
-    /// Asks the server if the email has an account, then moves on.
+    /// "Continue": on to the password. The app never asks the server whether the
+    /// email has an account, so nothing here can tell anyone who does.
     @discardableResult
-    func continueWithEmail() async -> Field? {
-        guard !isSubmitting else { return nil }
+    func continueTapped() -> Field? {
+        moveOn(to: .password)
+    }
+
+    /// "Create an account": on to the new-account step.
+    @discardableResult
+    func createTapped() -> Field? {
+        moveOn(to: .create)
+    }
+
+    private func moveOn(to step: Step) -> Field? {
+        formError = nil
+        emailError = Self.emailProblem(in: email)
+        if emailError != nil {
+            return fail(.email)
+        }
+        show(step)
+        return nil
+    }
+
+    // MARK: - Apple and Facebook
+
+    /// Whether the Facebook button should show: only once it is set up for this build.
+    var canUseFacebook: Bool {
+        facebook.isAvailable
+    }
+
+    /// "Continue with Facebook": Facebook's own screen, then the server checks
+    /// what it gave. Closing that screen is not an error.
+    func facebookTapped() async {
+        await finishSocial { try await facebook.signIn() }
+    }
+
+    /// Apple's own button has answered. `result` comes from `AppleSignIn`.
+    func appleFinished(_ result: Result<SocialCredential, any Error>) async {
+        await finishSocial { try result.get() }
+    }
+
+    private func finishSocial(_ obtain: () async throws -> SocialCredential) async {
+        guard !isSubmitting else { return }
         isSubmitting = true
         defer { isSubmitting = false }
 
-        emailError = Self.emailProblem(in: email)
-        if emailError != nil {
-            formError = nil
-            return fail(.email)
-        }
         formError = nil
-        let asked = trimmedEmail
         do {
-            let status = try await accountAPI.status(ofEmail: asked)
-            // The address was edited while asking: the answer is for another one.
-            guard asked == trimmedEmail else { return nil }
-            switch status {
-            case .hasAccount: show(.password)
-            case .newEmail: show(.create)
-            }
-            return nil
+            try await signInWithSocial(obtain())
         } catch is CancellationError {
-            return nil
-        } catch NetworkError.noConnection {
-            formError = String(localized: "You're offline. Connect to the internet to sign in.")
-            return fail(nil)
+            return
+        } catch SocialSignInError.cancelled {
+            return
         } catch {
-            // No answer means no step: say so and let them try again. A person who
-            // already has an account is still stopped by the server (409) at sign-up.
             formError = error.userMessage
-            return fail(nil)
+            failureCount += 1
         }
     }
 
@@ -166,8 +171,9 @@ final class EntryViewModel {
         } catch is CancellationError {
             return nil
         } catch AuthError.invalidCredentials {
+            // The same words whether the email has an account or not.
             passwordError =
-                String(localized: "That password doesn't match. Try again, or reset it.")
+                String(localized: "That email or password doesn't match. Try again, or reset it.")
             return fail(.password)
         } catch AuthError.accountLocked {
             return lock()
@@ -222,12 +228,6 @@ final class EntryViewModel {
             return nil
         } catch is CancellationError {
             return nil
-        } catch AuthError.emailAlreadyExists {
-            password = ""
-            passwordError = nil
-            formError = String(localized: "This email already has an account. Sign in instead.")
-            path = [.password]
-            return fail(nil)
         } catch {
             formError = error.userMessage
             return fail(nil)

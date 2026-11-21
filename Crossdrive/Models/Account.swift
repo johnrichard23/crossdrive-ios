@@ -1,11 +1,5 @@
 import Foundation
 
-/// What the server knows about an email address.
-enum AccountStatus: Equatable, Sendable {
-    case hasAccount
-    case newEmail
-}
-
 /// What happened after an account was made.
 enum SignUpResult: Equatable, Sendable {
     /// Ready to use: the app signs the person in.

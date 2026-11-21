@@ -9,20 +9,16 @@ struct EntryEmailStep: View {
 
     @FocusState private var emailFocused: Bool
     @State private var emailShakes = 0
-    @State private var formShakes = 0
 
     @Environment(\.theme) private var theme
-    @Environment(\.isOnline) private var isOnline
 
     var body: some View {
         EntryScaffold(focusedID: emailFocused ? "email" : nil, onCancel: onCancel) {
-            EntryMosaic(photos: viewModel.photos, isLoading: viewModel.isLoadingMedia)
-                .padding(.bottom, viewModel.photos.isEmpty && !viewModel.isLoadingMedia ? 0 : 18)
             EntryHeading(
                 title: viewModel.trip == nil ? "Sign in" : "Sign in to join the trip",
-                message: Text(
-                    "Enter your email. If you're new, you'll create an account in the next step."
-                )
+                message: viewModel.canUseFacebook
+                    ? Text("Enter your email, or use Apple or Facebook.")
+                    : Text("Enter your email, or use Apple.")
             )
             if let trip = viewModel.trip {
                 EntryTripChip(trip: trip, image: viewModel.tripImage).padding(.top, 16)
@@ -38,7 +34,7 @@ struct EntryEmailStep: View {
                 autocorrectionDisabled: true
             )
             .submitLabel(.continue)
-            .onSubmit(submit)
+            .onSubmit { submit(viewModel.continueTapped) }
             .errorShake(trigger: emailShakes)
             .id("email")
             .padding(.top, 18)
@@ -46,26 +42,21 @@ struct EntryEmailStep: View {
                 .textRole(.footnote)
                 .foregroundStyle(theme.labelSecondary)
                 .padding(.top, 12)
+            EntrySocialButtons(viewModel: viewModel).padding(.top, 20)
         } bar: {
             VStack(spacing: 12) {
-                if !isOnline {
-                    EntryStatusLine(
-                        systemImage: "wifi.slash",
-                        text: String(
-                            localized: "You're offline. Connect to the internet to sign in."
-                        )
-                    )
-                } else if let message = viewModel.formError {
+                if let message = viewModel.formError {
                     EntryStatusLine(
                         systemImage: "exclamationmark.circle",
                         text: message,
                         isError: true
                     )
-                    .errorShake(trigger: formShakes)
+                    .errorShake(trigger: viewModel.failureCount)
                 }
-                Button(viewModel.isSubmitting ? "Checking…" : "Continue", action: submit)
-                    .buttonStyle(.ds(.primary, isLoading: viewModel.isSubmitting))
-                    .disabled(!isOnline)
+                Button("Continue") { submit(viewModel.continueTapped) }
+                    .buttonStyle(.ds(.primary))
+                Button("Create an account") { submit(viewModel.createTapped) }
+                    .buttonStyle(.ds(.tonal))
             }
         }
         .dsHaptic(.error, trigger: viewModel.failureCount)
@@ -76,18 +67,10 @@ struct EntryEmailStep: View {
         }
     }
 
-    private func submit() {
-        Task {
-            switch await viewModel.continueWithEmail() {
-            case .email:
-                emailFocused = true
-                emailShakes += 1
-            case .name, .password: break
-            case nil:
-                if viewModel.formError != nil {
-                    formShakes += 1
-                }
-            }
+    private func submit(_ choose: () -> EntryViewModel.Field?) {
+        if choose() == .email {
+            emailFocused = true
+            emailShakes += 1
         }
     }
 }
@@ -117,13 +100,8 @@ struct EntryPasswordStep: View {
             onCancel: onCancel
         ) {
             EntryHeading(
-                title: "Welcome back",
-                message: Text(
-                    """
-                    You have an account with \(emailText). \
-                    Enter your password to keep going.
-                    """
-                )
+                title: "Enter your password",
+                message: Text("Enter the password for \(emailText) to keep going.")
             )
             if let message = viewModel.formError {
                 EntryStatusLine(systemImage: "exclamationmark.circle", text: message, isError: true)
@@ -221,7 +199,7 @@ struct EntryCreateStep: View {
                 title: "Create your account",
                 message: Text(
                     """
-                    This is your first time with \(emailText). \
+                    We'll make an account for \(emailText). \
                     Two more things, then you're back to joining the trip.
                     """
                 )
@@ -292,7 +270,7 @@ struct EntryCreateStep: View {
                     .overlay(
                         RoundedRectangle(cornerRadius: 6, style: .continuous)
                             .stroke(
-                                viewModel.hasAgreed ? theme.accent : theme.border,
+                                viewModel.hasAgreed ? theme.accent : theme.labelTertiary,
                                 lineWidth: 1.5
                             )
                     )

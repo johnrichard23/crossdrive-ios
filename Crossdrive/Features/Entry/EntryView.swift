@@ -31,8 +31,7 @@ struct EntryView: View {
         .presentationDragIndicator(.visible)
         .presentationCornerRadius(22)
         .interactiveDismissDisabled(viewModel.isSubmitting)
-        .task { await viewModel.loadMedia(scale: displayScale) }
-        .animation(DesignSystem.Motion.enter, value: viewModel.photos.count)
+        .task { await viewModel.loadTripImage(scale: displayScale) }
     }
 }
 

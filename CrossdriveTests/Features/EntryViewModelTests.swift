@@ -6,133 +6,60 @@ import XCTest
 final class EntryViewModelTests: XCTestCase {
     // MARK: Email step
 
-    func testContinueWithEmail_WhenEmailIsBad_ShouldAskNothingAndFocusTheEmail() async {
+    func testContinueTapped_WhenEmailIsBad_ShouldStayAndFocusTheEmail() {
         // Arrange
         let rig = makeEntryRig()
         rig.viewModel.email = "joy"
 
         // Act
-        let field = await rig.viewModel.continueWithEmail()
+        let field = rig.viewModel.continueTapped()
 
         // Assert
         XCTAssertEqual(field, .email)
         XCTAssertNotNil(rig.viewModel.emailError)
-        XCTAssertTrue(rig.requests.values.isEmpty)
         XCTAssertTrue(rig.viewModel.path.isEmpty)
     }
 
-    func testContinueWithEmail_WhenEmailHasAnAccount_ShouldShowThePasswordStep() async {
+    func testContinueTapped_WhenEmailIsGood_ShouldShowThePasswordWithoutAskingTheServer() {
         // Arrange
-        let rig = makeEntryRig { _ in .json(#"{"exists": true}"#) }
+        let rig = makeEntryRig()
         rig.viewModel.email = " joy@example.com "
 
         // Act
-        await rig.viewModel.continueWithEmail()
-
-        // Assert
-        XCTAssertEqual(rig.viewModel.path, [.password])
-        XCTAssertEqual(rig.viewModel.trimmedEmail, "joy@example.com")
-    }
-
-    func testContinueWithEmail_WhenEmailIsNew_ShouldShowTheCreateStep() async {
-        // Arrange
-        let rig = makeEntryRig { _ in .json(#"{"exists": false}"#) }
-        rig.viewModel.email = "new@example.com"
-
-        // Act
-        await rig.viewModel.continueWithEmail()
-
-        // Assert
-        XCTAssertEqual(rig.viewModel.path, [.create])
-    }
-
-    func testContinueWithEmail_WhenTheServerFails_ShouldStayAndLetThemTryAgain() async {
-        // Arrange
-        let rig = makeEntryRig { _ in .json("{}", status: 500) }
-        rig.viewModel.email = "joy@example.com"
-
-        // Act
-        let field = await rig.viewModel.continueWithEmail()
+        let field = rig.viewModel.continueTapped()
 
         // Assert
         XCTAssertNil(field)
-        XCTAssertTrue(rig.viewModel.path.isEmpty)
-        XCTAssertNotNil(rig.viewModel.formError)
-        XCTAssertEqual(rig.viewModel.failureCount, 1)
-    }
-
-    func testContinueWithEmail_WhenTheReplyHasNoAnswer_ShouldNotTreatTheEmailAsNew() async {
-        // Arrange
-        let rig = makeEntryRig { _ in .json("{}") }
-        rig.viewModel.email = "joy@example.com"
-
-        // Act
-        await rig.viewModel.continueWithEmail()
-
-        // Assert
-        XCTAssertTrue(rig.viewModel.path.isEmpty)
-        XCTAssertNotNil(rig.viewModel.formError)
-    }
-
-    func testContinueWithEmail_WhenTheEmailIsEditedWhileAsking_ShouldDropTheOldAnswer() async {
-        // Arrange
-        let started = Gate()
-        let release = Gate()
-        let rig = makeEntryRig { _ in
-            await started.open()
-            await release.wait()
-            return .json(#"{"exists": true}"#)
-        }
-        rig.viewModel.email = "joy@example.com"
-        let asking = Task { await rig.viewModel.continueWithEmail() }
-        await started.wait()
-
-        // Act
-        rig.viewModel.email = "someone.else@example.com"
-        await release.open()
-        await asking.value
-
-        // Assert
-        XCTAssertTrue(rig.viewModel.path.isEmpty)
-    }
-
-    func testContinueWithEmail_WhenOffline_ShouldStayAndSayYouAreOffline() async {
-        // Arrange
-        let rig = makeEntryRig { _ in throw NetworkError.noConnection }
-        rig.viewModel.email = "joy@example.com"
-
-        // Act
-        await rig.viewModel.continueWithEmail()
-
-        // Assert
-        XCTAssertTrue(rig.viewModel.path.isEmpty)
-        XCTAssertEqual(
-            rig.viewModel.formError,
-            "You're offline. Connect to the internet to sign in."
-        )
-    }
-
-    func testContinueWithEmail_WhenTappedTwiceAtOnce_ShouldAskOnce() async {
-        // Arrange
-        let started = Gate()
-        let release = Gate()
-        let rig = makeEntryRig { _ in
-            await started.open()
-            await release.wait()
-            return .json(#"{"exists": true}"#)
-        }
-        rig.viewModel.email = "joy@example.com"
-        let first = Task { await rig.viewModel.continueWithEmail() }
-        await started.wait()
-
-        // Act
-        await rig.viewModel.continueWithEmail()
-        await release.open()
-        await first.value
-
-        // Assert
-        XCTAssertEqual(rig.requests.values, ["auth/email-status"])
         XCTAssertEqual(rig.viewModel.path, [.password])
+        XCTAssertEqual(rig.viewModel.trimmedEmail, "joy@example.com")
+        XCTAssertTrue(rig.requests.values.isEmpty, "nothing may reveal who has an account")
+    }
+
+    func testCreateTapped_WhenEmailIsGood_ShouldShowTheCreateStepWithoutAskingTheServer() {
+        // Arrange
+        let rig = makeEntryRig()
+        rig.viewModel.email = "new@example.com"
+
+        // Act
+        let field = rig.viewModel.createTapped()
+
+        // Assert
+        XCTAssertNil(field)
+        XCTAssertEqual(rig.viewModel.path, [.create])
+        XCTAssertTrue(rig.requests.values.isEmpty)
+    }
+
+    func testCreateTapped_WhenEmailIsBad_ShouldStayAndFocusTheEmail() {
+        // Arrange
+        let rig = makeEntryRig()
+        rig.viewModel.email = ""
+
+        // Act
+        let field = rig.viewModel.createTapped()
+
+        // Assert
+        XCTAssertEqual(field, .email)
+        XCTAssertTrue(rig.viewModel.path.isEmpty)
     }
 
     // MARK: Password step
@@ -176,7 +103,7 @@ final class EntryViewModelTests: XCTestCase {
         XCTAssertEqual(field, .password)
         XCTAssertEqual(
             rig.viewModel.passwordError,
-            "That password doesn't match. Try again, or reset it."
+            "That email or password doesn't match. Try again, or reset it."
         )
         XCTAssertEqual(rig.viewModel.failureCount, 1)
     }
@@ -270,26 +197,31 @@ final class EntryViewModelTests: XCTestCase {
         )
     }
 
-    func testLoadMedia_WhenFourPhotosCome_ShouldShowThemAll() async {
+    func testLoadTripImage_WhenTheTripHasAPicture_ShouldLoadIt() async {
         // Arrange
-        let rig = makeEntryRig { _ in .json(SampleStub.welcomePhotosJSON) }
+        let trip = GateTrip(
+            title: "Behia",
+            detail: "",
+            imageURL: URL(string: "https://example.com/a.jpg")
+        )
+        let rig = makeEntryRig(trip: trip)
 
         // Act
-        await rig.viewModel.loadMedia(scale: 2)
+        await rig.viewModel.loadTripImage(scale: 2)
 
         // Assert
-        XCTAssertEqual(rig.viewModel.photos.count, 4)
+        XCTAssertNotNil(rig.viewModel.tripImage)
     }
 
-    func testLoadMedia_WhenFewerThanFourComeOrTheCallFails_ShouldShowNoMosaic() async {
+    func testLoadTripImage_WhenThereIsNoTrip_ShouldLoadNothing() async {
         // Arrange
-        let rig = makeEntryRig { _ in .json(#"{"photos": ["https://example.com/a.jpg"]}"#) }
+        let rig = makeEntryRig()
 
         // Act
-        await rig.viewModel.loadMedia(scale: 2)
+        await rig.viewModel.loadTripImage(scale: 2)
 
         // Assert
-        XCTAssertTrue(rig.viewModel.photos.isEmpty)
+        XCTAssertNil(rig.viewModel.tripImage)
     }
 
     func testGateTrip_WhenBuiltFromAnEvent_ShouldJoinTheDateAndPlace() throws {

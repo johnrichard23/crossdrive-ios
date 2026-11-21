@@ -17,16 +17,6 @@ enum SampleStub {
     ]
     """
 
-    /// Four pictures for the sign-in sheet.
-    static let welcomePhotosJSON = """
-    {"photos": [
-      "https://images.pexels.com/photos/13011294/pexels-photo-13011294.jpeg?auto=compress&w=400",
-      "https://images.pexels.com/photos/8613091/pexels-photo-8613091.jpeg?auto=compress&w=400",
-      "https://images.pexels.com/photos/1739842/pexels-photo-1739842.jpeg?auto=compress&w=400",
-      "https://images.pexels.com/photos/23499309/pexels-photo-23499309.jpeg?auto=compress&w=400"
-    ]}
-    """
-
     /// The Home reply; `-stub-home-going` shows the same trip for a person who is going.
     static func homeJSON(going: Bool = false) -> String {
         let registration = going
@@ -233,8 +223,7 @@ enum SampleStub {
             .json(eventsJSON)
         case (.get, "home"):
             .json(homeJSON(going: CommandLine.arguments.contains("-stub-home-going")))
-        case (.post, _) where endpoint.path.hasPrefix("auth/") && endpoint.path != "auth/refresh",
-             (.get, "auth/welcome-photos"):
+        case (.post, _) where endpoint.path.hasPrefix("auth/") && endpoint.path != "auth/refresh":
             authReply(for: endpoint)
         case (.post, "auth/refresh"):
             .json(#"{"accessToken": "stub-access-2", "expiresIn": 3600}"#)
@@ -244,7 +233,7 @@ enum SampleStub {
     }
 
     /// The sign-in, sign-up and reset replies. Try these in the sign-in sheet:
-    /// an email with "new" is a first visit, with "verify" asks to check the
+    /// creating an account with an email containing "verify" asks to check the
     /// email; the password "wrong" is rejected and "locked" is paused.
     private static func authReply(for endpoint: Endpoint) -> HTTPResponse {
         let fields = endpoint.body.flatMap {
@@ -260,14 +249,12 @@ enum SampleStub {
                 return .json(#"{"message": "Too many tries."}"#, status: 429)
             }
             return .json(signInJSON)
-        case "auth/email-status":
-            return .json(#"{"exists": \#(email.contains("new") ? "false" : "true")}"#)
+        case "auth/sign-in/social":
+            return .json(signInJSON)
         case "auth/sign-up":
             return .json(
                 #"{"verificationRequired": \#(email.contains("verify") ? "true" : "false")}"#
             )
-        case "auth/welcome-photos":
-            return .json(welcomePhotosJSON)
         default:
             return .json("{}")
         }

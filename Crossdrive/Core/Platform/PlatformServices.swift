@@ -8,6 +8,8 @@ struct PlatformServices: Sendable {
     var analytics: any Analytics
     var crashReporter: any CrashReporter
     var startupTasks: [StartupTask]
+    /// Facebook sign-in; off until the app id is set for the build.
+    var facebook: any SocialSignInProviding = UnavailableSocialSignIn()
 
     /// What the running app uses. Vendor hooks (analytics, crash reporting) drop everything.
     static var system: PlatformServices {
@@ -17,7 +19,8 @@ struct PlatformServices: Sendable {
             flags: LocalFeatureFlags(),
             analytics: NoAnalytics(),
             crashReporter: NoCrashReporter(),
-            startupTasks: []
+            startupTasks: [],
+            facebook: FacebookSignInService()
         )
     }
 
