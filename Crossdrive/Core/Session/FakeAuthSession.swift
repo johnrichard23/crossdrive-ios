@@ -40,6 +40,12 @@ actor FakeAuthSession: AuthSession {
         return user
     }
 
+    func signIn(with _: SocialCredential) throws -> AppUser {
+        let user = try signInResult.get()
+        send(.signedIn(user))
+        return user
+    }
+
     func signOut() {
         signOutCalls += 1
         send(.signedOut)

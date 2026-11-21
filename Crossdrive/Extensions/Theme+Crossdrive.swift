@@ -18,7 +18,8 @@ extension DesignSystem.Theme {
         labelPrimary: DesignSystem.color(light: 0x151E1D, dark: 0xEEF2F1),
         labelSecondary: DesignSystem.color(light: 0x4A5857, dark: 0xA3AFAE),
         labelTertiary: DesignSystem.color(light: 0x6F7D7C, dark: 0x6F7E7D),
-        border: DesignSystem.color(light: 0x6F7D7C, dark: 0x6F7E7D),
+        // A light edge at rest; focus (purple) and errors (red) carry the emphasis.
+        border: DesignSystem.color(light: 0xC3CCCA, dark: 0x43514F),
         separator: DesignSystem.color(light: 0xD3DBDA, dark: 0x2E3B3A),
         success: DesignSystem.color(light: 0x1E7048, dark: 0x6FD39E),
         warning: DesignSystem.color(light: 0x8A5D0B, dark: 0xF2C96E),
@@ -52,6 +53,8 @@ enum CDColor {
     static let onHarvest = DesignSystem.color(light: 0x151E1D, dark: 0x151E1D)
     static let brandSoft = DesignSystem.color(light: 0xECE4FA, dark: 0x2B2442)
     static let onBrandSoft = DesignSystem.color(light: 0x573693, dark: 0xD4C4F5)
+    /// `brandSoft` while pressed.
+    static let brandSoftPressed = DesignSystem.color(light: 0xDFD2F6, dark: 0x362D52)
     /// The Pine panel (verse and prayer cards) and the colours used on it.
     static let pineGround = DesignSystem.color(light: 0x151E1D, dark: 0x0E1514)
     static let onPine = DesignSystem.color(light: 0xEEF2F1, dark: 0xEEF2F1)
@@ -68,4 +71,16 @@ enum CDColor {
     static let captionMuted = DesignSystem.color(light: 0x5A6A69, dark: 0xA3AFAE)
     /// Small text on a photo scrim.
     static let onScrimMuted = DesignSystem.color(light: 0xDDE6E4, dark: 0xDDE6E4)
+}
+
+extension DesignSystem.ButtonKind {
+    /// A quiet second action: a soft purple fill and deep purple label, no outline.
+    /// Sits under a primary button without competing with it.
+    static let tonal = DesignSystem.ButtonKind { _ in
+        DesignSystem.ButtonColors(
+            fill: CDColor.brandSoft,
+            pressedFill: CDColor.brandSoftPressed,
+            foreground: CDColor.onBrandSoft
+        )
+    }
 }

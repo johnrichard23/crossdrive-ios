@@ -21,5 +21,9 @@ struct NoAuthSession: AuthSession {
         throw AuthError.notSupported
     }
 
+    func signIn(with _: SocialCredential) async throws -> AppUser {
+        throw AuthError.notSupported
+    }
+
     func signOut() async {}
 }

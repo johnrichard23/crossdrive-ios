@@ -26,6 +26,9 @@ protocol AuthSession: Sendable {
 
     func signIn(_ credentials: Credentials) async throws -> AppUser
 
+    /// Signs in with what a provider (Facebook) returned.
+    func signIn(with credential: SocialCredential) async throws -> AppUser
+
     /// Ends the session and removes everything stored for it. Never throws:
     /// being offline must not keep someone signed in.
     func signOut() async

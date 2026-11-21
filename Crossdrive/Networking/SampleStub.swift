@@ -212,28 +212,49 @@ enum SampleStub {
     static func handle(_ endpoint: Endpoint) async throws -> HTTPResponse {
         switch (endpoint.method, endpoint.path) {
         case (.get, "items"):
-            return .json(itemsJSON)
+            .json(itemsJSON)
         case (.get, _) where endpoint.path.hasPrefix("events/"):
-            return .json(eventDetailJSON(for: String(endpoint.path.dropFirst("events/".count))))
+            .json(eventDetailJSON(for: String(endpoint.path.dropFirst("events/".count))))
         case (.get, _) where endpoint.path.hasPrefix("ministries/"):
-            return .json(ministryDetailJSON)
+            .json(ministryDetailJSON)
         case (.get, "ministries"):
-            return .json(ministriesJSON)
+            .json(ministriesJSON)
         case (.get, "events"):
-            return .json(eventsJSON)
+            .json(eventsJSON)
         case (.get, "home"):
-            return .json(homeJSON(going: CommandLine.arguments.contains("-stub-home-going")))
-        case (.post, "auth/sign-in"):
-            let fields = endpoint.body.flatMap { try? JSONDecoder().decode(
-                [String: String].self,
-                from: $0
-            ) }
-            if fields?["password"] == "wrong" {
+            .json(homeJSON(going: CommandLine.arguments.contains("-stub-home-going")))
+        case (.post, _) where endpoint.path.hasPrefix("auth/") && endpoint.path != "auth/refresh":
+            authReply(for: endpoint)
+        case (.post, "auth/refresh"):
+            .json(#"{"accessToken": "stub-access-2", "expiresIn": 3600}"#)
+        default:
+            .json("{}")
+        }
+    }
+
+    /// The sign-in, sign-up and reset replies. Try these in the sign-in sheet:
+    /// creating an account with an email containing "verify" asks to check the
+    /// email; the password "wrong" is rejected and "locked" is paused.
+    private static func authReply(for endpoint: Endpoint) -> HTTPResponse {
+        let fields = endpoint.body.flatMap {
+            try? JSONDecoder().decode([String: String].self, from: $0)
+        } ?? [:]
+        let email = (fields["email"] ?? "").lowercased()
+        switch endpoint.path {
+        case "auth/sign-in":
+            if fields["password"] == "wrong" {
                 return .json(#"{"message": "Incorrect email or password."}"#, status: 401)
             }
+            if fields["password"] == "locked" {
+                return .json(#"{"message": "Too many tries."}"#, status: 429)
+            }
             return .json(signInJSON)
-        case (.post, "auth/refresh"):
-            return .json(#"{"accessToken": "stub-access-2", "expiresIn": 3600}"#)
+        case "auth/sign-in/social":
+            return .json(signInJSON)
+        case "auth/sign-up":
+            return .json(
+                #"{"verificationRequired": \#(email.contains("verify") ? "true" : "false")}"#
+            )
         default:
             return .json("{}")
         }

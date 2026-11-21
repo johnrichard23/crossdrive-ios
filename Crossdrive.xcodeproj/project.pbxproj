@@ -11,6 +11,8 @@
 		BA5E00000000000000000102 /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = BA5E00000000000000000112 /* DesignSystem */; };
 		BA5E00000000000000000103 /* DataLayer in Frameworks */ = {isa = PBXBuildFile; productRef = BA5E00000000000000000113 /* DataLayer */; };
 		BA5E00000000000000000104 /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = BA5E00000000000000000114 /* DesignSystem */; };
+		BA5E00000000000000000105 /* FacebookCore in Frameworks */ = {isa = PBXBuildFile; productRef = BA5E00000000000000000115 /* FacebookCore */; };
+		BA5E00000000000000000106 /* FacebookLogin in Frameworks */ = {isa = PBXBuildFile; productRef = BA5E00000000000000000116 /* FacebookLogin */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -53,6 +55,8 @@
 			files = (
 				BA5E00000000000000000101 /* DataLayer in Frameworks */,
 				BA5E00000000000000000102 /* DesignSystem in Frameworks */,
+				BA5E00000000000000000105 /* FacebookCore in Frameworks */,
+				BA5E00000000000000000106 /* FacebookLogin in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -121,6 +125,8 @@
 			packageProductDependencies = (
 				BA5E00000000000000000111 /* DataLayer */,
 				BA5E00000000000000000112 /* DesignSystem */,
+				BA5E00000000000000000115 /* FacebookCore */,
+				BA5E00000000000000000116 /* FacebookLogin */,
 			);
 			productName = Crossdrive;
 			productReference = BA5E00000000000000000011 /* Crossdrive.app */;
@@ -182,6 +188,7 @@
 			packageReferences = (
 				BA5E00000000000000000121 /* XCLocalSwiftPackageReference "../mobile-data-layer" */,
 				BA5E00000000000000000122 /* XCLocalSwiftPackageReference "../mobile-design-system" */,
+				BA5E00000000000000000123 /* XCRemoteSwiftPackageReference "facebook-ios-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = BA5E00000000000000000004 /* Products */;
@@ -455,6 +462,17 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		BA5E00000000000000000123 /* XCRemoteSwiftPackageReference "facebook-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/facebook/facebook-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 18.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		BA5E00000000000000000111 /* DataLayer */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -471,6 +489,16 @@
 		BA5E00000000000000000114 /* DesignSystem */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = DesignSystem;
+		};
+		BA5E00000000000000000115 /* FacebookCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BA5E00000000000000000123 /* XCRemoteSwiftPackageReference "facebook-ios-sdk" */;
+			productName = FacebookCore;
+		};
+		BA5E00000000000000000116 /* FacebookLogin */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BA5E00000000000000000123 /* XCRemoteSwiftPackageReference "facebook-ios-sdk" */;
+			productName = FacebookLogin;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
