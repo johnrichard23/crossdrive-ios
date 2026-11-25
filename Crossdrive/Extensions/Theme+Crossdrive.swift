@@ -51,6 +51,9 @@ extension DesignSystem.Theme {
 enum CDColor {
     static let harvest = DesignSystem.color(light: 0xE8A93A, dark: 0xE8A93A)
     static let onHarvest = DesignSystem.color(light: 0x151E1D, dark: 0x151E1D)
+    /// A soft Harvest for a status that waits on someone else ("Waiting for a coordinator").
+    static let harvestSoft = DesignSystem.color(light: 0xFBF0D9, dark: 0x3A2E14)
+    static let onHarvestSoft = DesignSystem.color(light: 0x8A5D0B, dark: 0xF2C877)
     static let brandSoft = DesignSystem.color(light: 0xECE4FA, dark: 0x2B2442)
     static let onBrandSoft = DesignSystem.color(light: 0x573693, dark: 0xD4C4F5)
     /// The light lavender-gray fill behind small fact chips.

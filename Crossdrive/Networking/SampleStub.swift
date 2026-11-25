@@ -77,8 +77,54 @@ enum SampleStub {
         case "behia-going": behiaJSON(id: id, registration: goingMe, meetup: behiaMeetup)
         case "behia-full": behiaJSON(id: id, status: "full", registered: 34)
         case "bulan": bulanJSON
+        case "camp-feb": campJSON
         default: behiaJSON(id: id)
         }
+    }
+
+    /// Placeholder waiver words until CrossDrive sends the real text.
+    private static let waiverAndPay = #"""
+    "waiver": {"text": "[The waiver text from CrossDrive Missions goes here: travel by boat, activities \#
+    with children, medical care on the island, photos and consent, and who to contact. We still need this \#
+    from CrossDrive Missions.]"},
+    "pay": {"qrUrl": "https://api.qrserver.com/v1/create-qr-code/?size=360x360&data=CrossDrive%20sample%20QR", \#
+    "gcash": "0917 000 0000"},
+    """#
+
+    private static let campJSON = """
+    {
+      "event": {
+        "id": "camp-feb", "kind": "camp", "title": "Young Missionaries Camp", "place": "Venue to be announced",
+        "startsAt": "2027-02-19T22:00:00Z", "endsAt": "2027-02-22T04:00:00Z",
+        "fee": {"amountMinor": 100000, "currency": "PHP"},
+        "capacity": 30, "registeredCount": 12, "status": "open",
+        "heroImageURL": "https://images.pexels.com/photos/33714873/pexels-photo-33714873.jpeg?auto=compress&w=1200"
+      },
+      "summary": "Three days of training for young people who want to serve in missions.",
+      "background": "Sessions, worship and practice outreach, led by the CrossDrive team.",
+      "covers": [{"id": "meals", "name": "Meals", "icon": "meals"},
+                 {"id": "stay", "name": "Stay", "icon": "stay"}],
+      "bringList": ["Bible and notebook", "Water bottle", "Clothes for three days"],
+      \(waiverAndPay)
+      "photos": []
+    }
+    """
+
+    /// The registration reply. Registering for "behia-lastslot" finds the last
+    /// slot just taken; its waiting list still works.
+    private static func registrationReply(for endpoint: Endpoint) -> HTTPResponse {
+        let fields = endpoint.body
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        let waitlist = fields?["waitlist"] as? Bool ?? false
+        if endpoint.path.hasPrefix("events/behia-lastslot/"), !waitlist {
+            return .json(#"{"message": "The last slot was just taken."}"#, status: 409)
+        }
+        let permit = (fields?["guardianPhone"] as? String) == nil ? "null" : #""waiting""#
+        let status = waitlist ? "waitlisted" : "pending"
+        return .json(
+            #"{"id": "reg-1", "status": "\#(status)", "reference": "CD-0187", "permit": \#(permit)}"#,
+            status: 201
+        )
     }
 
     private static let goingMe = #""me": {"status": "going", "waiverSigned": false, "paid": false},"#
@@ -112,10 +158,17 @@ enum SampleStub {
                      {"id": "stay", "name": "Stay", "icon": "stay"}],
           "notCovered": "fare to Magallanes and snacks",
           "roles": [
-            {"id": "kids", "name": "Kids' camp", "summary": "Songs, stories and games", "icon": "kids"},
-            {"id": "cooking", "name": "Cooking", "summary": "We cook and eat with the families", "icon": "cooking"}
+            {"id": "kids", "name": "Kids' camp", "summary": "Songs, stories and games", "icon": "kids",
+             "slotsLeft": 3},
+            {"id": "cooking", "name": "Cooking", "summary": "Cook and eat with the families", "icon": "cooking",
+             "slotsLeft": 4},
+            {"id": "film", "name": "Film crew", "summary": "Help local youth make a short film", "icon": "film",
+             "slotsLeft": 2},
+            {"id": "logistics", "name": "Logistics", "summary": "Boat, bags and the head count",
+             "icon": "logistics", "slotsLeft": 0}
           ],
           "bringList": ["Bible and notebook", "Water bottle", "Towel and slippers", "Light rain jacket"],
+          \(waiverAndPay)
           \(registration)
           \(meetup)
           "photos": []
@@ -223,13 +276,24 @@ enum SampleStub {
             .json(eventsJSON)
         case (.get, "home"):
             .json(homeJSON(going: CommandLine.arguments.contains("-stub-home-going")))
-        case (.post, _) where endpoint.path.hasPrefix("auth/") && endpoint.path != "auth/refresh":
-            authReply(for: endpoint)
-        case (.post, "auth/refresh"):
-            .json(#"{"accessToken": "stub-access-2", "expiresIn": 3600}"#)
+        case (.post, _):
+            postReply(for: endpoint)
         default:
             .json("{}")
         }
+    }
+
+    private static func postReply(for endpoint: Endpoint) -> HTTPResponse {
+        if endpoint.path == "auth/refresh" {
+            return .json(#"{"accessToken": "stub-access-2", "expiresIn": 3600}"#)
+        }
+        if endpoint.path.hasPrefix("auth/") {
+            return authReply(for: endpoint)
+        }
+        if endpoint.path.hasSuffix("/registrations") {
+            return registrationReply(for: endpoint)
+        }
+        return .json("{}")
     }
 
     /// The sign-in, sign-up and reset replies. Try these in the sign-in sheet:

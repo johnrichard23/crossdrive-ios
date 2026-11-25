@@ -9,7 +9,6 @@ import SwiftUI
 struct EventDetailView: View {
     @State private var viewModel: EventDetailViewModel
     private let source: EventDetailSource
-    private let onRegister: @MainActor () -> Void
     private let onOpenTrip: () -> Void
 
     @Environment(\.theme) private var theme
@@ -28,16 +27,16 @@ struct EventDetailView: View {
     @State private var containerWidth: CGFloat = 0
     /// True once the photo has scrolled away, so the status bar gets a backing.
     @State private var showsStatusBackdrop = false
+    /// The registration sheet, while it is up.
+    @State private var registration: RegistrationViewModel?
 
     init(
         viewModel: EventDetailViewModel,
         source: EventDetailSource = .events,
-        onRegister: @escaping @MainActor () -> Void = {},
         onOpenTrip: @escaping () -> Void = {}
     ) {
         _viewModel = State(initialValue: viewModel)
         self.source = source
-        self.onRegister = onRegister
         self.onOpenTrip = onOpenTrip
     }
 
@@ -69,6 +68,29 @@ struct EventDetailView: View {
                     Task { await viewModel.connectionRestored(media: mediaLayout) }
                 }
             }
+            .sheet(item: $registration) { model in
+                RegistrationView(viewModel: model) { registered in
+                    registration = nil
+                    if registered {
+                        Task { await viewModel.load(media: mediaLayout, forceReload: true) }
+                    }
+                }
+            }
+    }
+
+    /// Register: a guest signs in first. The trip is read again before the
+    /// steps open, so they start from the latest slots, and someone who turns
+    /// out to have joined already (seen once signed in) is not asked twice.
+    private func register(_ detail: EventDetail) {
+        accountGate(for: detail.event.gateTrip) {
+            Task {
+                await viewModel.load(media: mediaLayout, forceReload: true)
+                guard let fresh = viewModel.state.value,
+                      fresh.bar == .register || fresh.bar == .full
+                else { return }
+                registration = viewModel.registrationViewModel(for: fresh)
+            }
+        }
     }
 
     private struct MapRequest: Equatable {
@@ -218,7 +240,7 @@ struct EventDetailView: View {
                     if dynamicTypeSize.isAccessibilitySize {
                         EventPinnedBar(
                             detail: detail,
-                            onRegister: { accountGate(for: detail.event.gateTrip, onRegister) },
+                            onRegister: { register(detail) },
                             onOpenTrip: onOpenTrip
                         )
                         .padding(.horizontal, -theme.spacing.screenMarginCompact)
@@ -236,7 +258,7 @@ struct EventDetailView: View {
             if !dynamicTypeSize.isAccessibilitySize {
                 EventPinnedBar(
                     detail: detail,
-                    onRegister: { accountGate(for: detail.event.gateTrip, onRegister) },
+                    onRegister: { register(detail) },
                     onOpenTrip: onOpenTrip
                 )
                 .background(.regularMaterial)

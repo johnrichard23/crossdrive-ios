@@ -72,6 +72,27 @@ final class EventMapperTests: XCTestCase {
 
     private let event = #"{"id": "e", "title": "T", "startsAt": "2026-12-11T22:00:00Z"}"#
 
+    func testDetail_WhenItHasTeamSlotsWaiverAndPay_ShouldKeepThemAndDropAnInsecureQR() throws {
+        // Arrange
+        let json = #"""
+        {"event": \#(event),
+         "roles": [{"id": "film", "name": "Film crew", "slotsLeft": 2},
+                   {"id": "logistics", "name": "Logistics", "slotsLeft": -1}],
+         "waiver": {"text": "Waiver words", "pdfUrl": "https://example.com/waiver.pdf"},
+         "pay": {"qrUrl": "http://example.com/qr.png", "gcash": "0917 000 0000"}}
+        """#
+
+        // Act
+        let detail = try XCTUnwrap(mapper.detail(from: decode(json)))
+
+        // Assert
+        XCTAssertEqual(detail.roles.map(\.slotsLabel), ["2 slots left", "Full"])
+        XCTAssertEqual(detail.waiver?.text, "Waiver words")
+        XCTAssertEqual(detail.waiver?.pdfURL?.absoluteString, "https://example.com/waiver.pdf")
+        XCTAssertNil(detail.pay?.qrURL, "a QR code over plain HTTP could be swapped on the way")
+        XCTAssertEqual(detail.pay?.gcashNumber, "0917 000 0000")
+    }
+
     private func decode(_ json: String) throws -> EventDetailDTO {
         try JSONDecoder().decode(EventDetailDTO.self, from: Data(json.utf8))
     }
