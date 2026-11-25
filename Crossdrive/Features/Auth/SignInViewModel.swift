@@ -10,8 +10,23 @@ final class SignInViewModel {
         case password
     }
 
-    var email = ""
-    var password = ""
+    /// Editing either field clears an old form message: it was about other values.
+    var email = "" {
+        didSet {
+            if email != oldValue {
+                formError = nil
+            }
+        }
+    }
+
+    var password = "" {
+        didSet {
+            if password != oldValue {
+                formError = nil
+            }
+        }
+    }
+
     private(set) var emailError: String?
     private(set) var passwordError: String?
     private(set) var formError: String?
@@ -42,26 +57,26 @@ final class SignInViewModel {
         isSubmitting = true
         defer { isSubmitting = false }
 
-        formError = nil
         emailError = Self.emailProblem(in: email)
         passwordError = Self.passwordProblem(in: password)
-        if emailError != nil {
-            return fail(.email)
-        }
-        if passwordError != nil {
-            return fail(.password)
+        if emailError != nil || passwordError != nil {
+            formError = nil
+            return fail(emailError != nil ? .email : .password)
         }
 
+        let typed = (email, password)
         let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
         do {
+            // The last message stays on screen while the request runs, so the form
+            // does not jump up and back down on every tap.
             try await signIn(Credentials(email: trimmed, password: password))
+            formError = nil
             return nil
         } catch is CancellationError {
             return nil
-        } catch AuthError.invalidCredentials {
-            formError = AuthError.invalidCredentials.userMessage
-            return fail(.password)
         } catch {
+            // Edited while waiting: the answer is about values no longer on screen.
+            guard (email, password) == typed else { return nil }
             formError = error.userMessage
             return fail(nil)
         }

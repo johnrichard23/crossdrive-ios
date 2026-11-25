@@ -92,7 +92,7 @@ final class SignInViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.formError)
     }
 
-    func testSubmit_WhenCredentialsAreWrong_ShouldShowOneMessageAndFocusThePassword() async {
+    func testSubmit_WhenCredentialsAreWrong_ShouldShowOneFormMessage() async {
         // Arrange
         let viewModel = SignInViewModel { _ in throw AuthError.invalidCredentials }
         viewModel.email = "dana@example.com"
@@ -102,7 +102,7 @@ final class SignInViewModelTests: XCTestCase {
         let field = await viewModel.submit()
 
         // Assert
-        XCTAssertEqual(field, .password)
+        XCTAssertNil(field, "must not single out either field")
         XCTAssertEqual(viewModel.formError, AuthError.invalidCredentials.userMessage)
         XCTAssertNil(viewModel.emailError, "must not hint at which of the two was wrong")
         XCTAssertEqual(viewModel.failureCount, 1)
@@ -141,6 +141,71 @@ final class SignInViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.formError)
     }
 
+    func testEmail_WhenEditedAfterAFailure_ShouldClearTheOldMessage() async {
+        // Arrange
+        let viewModel = SignInViewModel { _ in throw AuthError.invalidCredentials }
+        viewModel.email = "dana@example.com"
+        viewModel.password = "nope"
+        await viewModel.submit()
+
+        // Act
+        viewModel.email = "dana@example.org"
+
+        // Assert
+        XCTAssertNil(viewModel.formError)
+    }
+
+    func testSubmit_WhenFieldsChangeBeforeAFailedAnswer_ShouldShowNoMessage() async {
+        // Arrange: the request waits for the server, then fails.
+        let started = Gate()
+        let release = Gate()
+        let viewModel = SignInViewModel { _ in
+            await started.open()
+            await release.wait()
+            throw AuthError.invalidCredentials
+        }
+        viewModel.email = "dana@example.com"
+        viewModel.password = "nope"
+        let attempt = Task { await viewModel.submit() }
+        await started.wait()
+
+        // Act: the user fixes the password while waiting.
+        viewModel.password = "secret"
+        await release.open()
+        let field = await attempt.value
+
+        // Assert
+        XCTAssertNil(field)
+        XCTAssertNil(viewModel.formError)
+        XCTAssertEqual(viewModel.failureCount, 0)
+    }
+
+    func testSubmit_WhenRetryingAfterAFailure_ShouldKeepTheMessageWhileTheRequestRuns() async {
+        // Arrange: the first attempt fails, the second waits for the server.
+        let started = Gate()
+        let release = Gate()
+        let calls = Counter()
+        let viewModel = SignInViewModel { _ in
+            if calls.next() == 1 {
+                throw AuthError.invalidCredentials
+            }
+            await started.open()
+            await release.wait()
+        }
+        viewModel.email = "dana@example.com"
+        viewModel.password = "secret"
+        await viewModel.submit()
+        let retry = Task { await viewModel.submit() }
+        await started.wait()
+
+        // Assert: nothing jumps while the request is out.
+        XCTAssertEqual(viewModel.formError, AuthError.invalidCredentials.userMessage)
+
+        await release.open()
+        await retry.value
+        XCTAssertNil(viewModel.formError)
+    }
+
     func testSubmit_WhenAlreadySigningIn_ShouldSendOnlyOneRequest() async {
         // Arrange: the first attempt waits for the server.
         let started = Gate()
@@ -163,5 +228,10 @@ final class SignInViewModelTests: XCTestCase {
 
         // Assert
         XCTAssertEqual(calls.next(), 2, "signIn should have been called exactly once before this")
+        XCTAssertEqual(
+            viewModel.failureCount,
+            0,
+            "an ignored tap is not a failure, so nothing shakes"
+        )
     }
 }

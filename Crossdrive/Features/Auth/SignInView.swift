@@ -7,6 +7,9 @@ struct SignInView: View {
     @State private var viewModel: SignInViewModel
     @FocusState private var emailFocused: Bool
     @FocusState private var passwordFocused: Bool
+    @State private var emailShakes = 0
+    @State private var passwordShakes = 0
+    @State private var formShakes = 0
 
     @Environment(\.theme) private var theme
 
@@ -22,6 +25,7 @@ struct SignInView: View {
 
                 if let message = viewModel.formError {
                     DSBanner(message, kind: .error)
+                        .errorShake(trigger: formShakes)
                 }
 
                 DSTextField(
@@ -36,6 +40,7 @@ struct SignInView: View {
                 )
                 .submitLabel(.next)
                 .onSubmit { passwordFocused = true }
+                .errorShake(trigger: emailShakes)
 
                 DSSecureField(
                     "Password",
@@ -45,6 +50,7 @@ struct SignInView: View {
                 )
                 .submitLabel(.go)
                 .onSubmit(submit)
+                .errorShake(trigger: passwordShakes)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .screenMargins()
@@ -57,6 +63,14 @@ struct SignInView: View {
                 .buttonStyle(.ds(.primary, isLoading: viewModel.isSubmitting))
         }
         .dsHaptic(.error, trigger: viewModel.failureCount)
+        .onChange(of: viewModel.failureCount) {
+            // A form-level failure shakes the message. Bumped after the update that
+            // shows the banner, so its first appearance shakes too; an ignored
+            // second tap changes nothing.
+            if viewModel.formError != nil {
+                formShakes += 1
+            }
+        }
         .privacyCover()
         .onChange(of: emailFocused) { wasFocused, isFocused in
             if wasFocused, !isFocused {
@@ -73,9 +87,17 @@ struct SignInView: View {
     private func submit() {
         Task {
             switch await viewModel.submit() {
-            case .email: emailFocused = true
-            case .password: passwordFocused = true
-            case nil: break
+            case .email:
+                emailFocused = true
+                emailShakes += 1
+            case .password:
+                passwordFocused = true
+                passwordShakes += 1
+            case nil:
+                // Ready to try again; the message, not the field, shakes.
+                if viewModel.formError != nil {
+                    passwordFocused = true
+                }
             }
         }
     }
