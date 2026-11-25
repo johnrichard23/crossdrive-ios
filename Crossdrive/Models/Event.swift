@@ -147,6 +147,11 @@ struct Event: Identifiable, Hashable, Sendable {
         Self.month.format(startsAt)
     }
 
+    /// "Dec 12": the day the fee is due, the first day of the event.
+    var feeDueDateLabel: String {
+        Self.monthDay.format(startsAt)
+    }
+
     /// "Pay before Dec 12": the fee is due by the first day.
     var payBeforeLabel: String {
         "Pay before \(Self.monthDay.format(startsAt))"

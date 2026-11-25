@@ -63,6 +63,16 @@ final class EventDetailViewModel {
         self.mediaDeadline = mediaDeadline
     }
 
+    /// The registration steps for this trip, as it was just read.
+    func registrationViewModel(for detail: EventDetail) -> RegistrationViewModel {
+        RegistrationViewModel(
+            detail: detail,
+            api: api,
+            imageLoader: imageLoader,
+            reporter: reporter
+        )
+    }
+
     /// Loads the trip. With `media`, the loading state stays up until the photo
     /// and the map are ready too, so nothing pops in after the screen appears.
     /// A slow network never holds it longer than `mediaDeadline` (3 seconds by

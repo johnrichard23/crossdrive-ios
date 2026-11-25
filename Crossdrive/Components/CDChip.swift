@@ -11,6 +11,8 @@ struct CDChip: View {
         case status
         /// Something to do ("Waiver not signed yet").
         case warning
+        /// Waiting on someone else ("Waiting for a coordinator to confirm").
+        case pending
     }
 
     let text: String
@@ -30,7 +32,11 @@ struct CDChip: View {
     }
 
     private var fill: Color {
-        tone == .status ? CDColor.brandSoft : CDColor.chipFill
+        switch tone {
+        case .status: CDColor.brandSoft
+        case .pending: CDColor.harvestSoft
+        case .plain, .warning: CDColor.chipFill
+        }
     }
 
     private var foreground: Color {
@@ -38,6 +44,7 @@ struct CDChip: View {
         case .plain: theme.labelPrimary
         case .status: CDColor.onBrandSoft
         case .warning: theme.warning
+        case .pending: CDColor.onHarvestSoft
         }
     }
 }

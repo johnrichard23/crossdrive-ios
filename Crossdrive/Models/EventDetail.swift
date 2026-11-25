@@ -20,6 +20,10 @@ struct EventDetail: Hashable, Sendable {
     var registration: EventRegistration?
     /// Only present when the person is going.
     var meetup: EventMeetup?
+    /// What a person signs to register. `nil` when the trip has not published one yet.
+    var waiver: EventWaiver?
+    /// How to pay the fee: CrossDrive's own QR code and GCash number, from the server.
+    var pay: EventPay?
 
     /// What the pinned bar offers, in the order the rules apply.
     var bar: EventBar {
@@ -90,6 +94,21 @@ struct EventRole: Identifiable, Hashable, Sendable {
     var name: String
     var summary: String
     var iconKey: String?
+    /// Places left on this team. `nil` when the team has no limit; 0 means full.
+    var slotsLeft: Int?
+
+    /// "3 slots left", "1 slot left" or "Full". `nil` when the team has no limit.
+    var slotsLabel: String? {
+        guard let slotsLeft else { return nil }
+        if slotsLeft <= 0 {
+            return "Full"
+        }
+        return slotsLeft == 1 ? "1 slot left" : "\(slotsLeft) slots left"
+    }
+
+    var isFull: Bool {
+        (slotsLeft ?? 1) <= 0
+    }
 }
 
 struct EventCover: Identifiable, Hashable, Sendable {
@@ -135,4 +154,16 @@ struct EventRegistration: Hashable, Sendable {
 struct EventMeetup: Hashable, Sendable {
     var point: String
     var time: String
+}
+
+struct EventWaiver: Hashable, Sendable {
+    var text: String
+    var pdfURL: URL?
+}
+
+/// Where a trip's fee goes. Both come from the server and only an admin
+/// changes them (a swapped QR code is the main fraud risk in the app).
+struct EventPay: Hashable, Sendable {
+    var qrURL: URL?
+    var gcashNumber: String?
 }

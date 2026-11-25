@@ -47,13 +47,39 @@ struct EventMapper: Sendable {
             bringList: (dto.bringList ?? []).filter { !$0.isEmpty },
             registration: registration,
             // The meeting point is for people who are going, whatever the server sent.
-            meetup: registration?.status == .going ? dto.meetup.flatMap(meetup) : nil
+            meetup: registration?.status == .going ? dto.meetup.flatMap(meetup) : nil,
+            waiver: dto.waiver.flatMap(waiver),
+            pay: dto.pay.flatMap(pay)
         )
     }
 
     private func role(_ dto: EventDetailDTO.RoleDTO) -> EventRole? {
         guard let id = dto.id, !id.isEmpty, let name = dto.name, !name.isEmpty else { return nil }
-        return EventRole(id: id, name: name, summary: dto.summary ?? "", iconKey: dto.icon)
+        return EventRole(
+            id: id,
+            name: name,
+            summary: dto.summary ?? "",
+            iconKey: dto.icon,
+            slotsLeft: dto.slotsLeft.map { max($0, 0) }
+        )
+    }
+
+    private func waiver(_ dto: EventDetailDTO.WaiverDTO) -> EventWaiver? {
+        guard let text = dto.text, !text.isEmpty else { return nil }
+        return EventWaiver(text: text, pdfURL: dto.pdfUrl.flatMap(Self.httpsURL))
+    }
+
+    /// The QR code must come over HTTPS; anything else is dropped rather than shown.
+    private func pay(_ dto: EventDetailDTO.PayDTO) -> EventPay? {
+        let qrURL = dto.qrUrl.flatMap(Self.httpsURL)
+        let gcash = dto.gcash.flatMap { $0.isEmpty ? nil : $0 }
+        guard qrURL != nil || gcash != nil else { return nil }
+        return EventPay(qrURL: qrURL, gcashNumber: gcash)
+    }
+
+    private static func httpsURL(_ text: String) -> URL? {
+        guard let url = URL(string: text), url.scheme?.lowercased() == "https" else { return nil }
+        return url
     }
 
     private func cover(_ dto: EventDetailDTO.CoverDTO) -> EventCover? {
