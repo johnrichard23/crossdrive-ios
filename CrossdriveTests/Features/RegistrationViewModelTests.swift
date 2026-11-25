@@ -1,5 +1,6 @@
 @testable import Crossdrive
 import DataLayer
+import SwiftUI
 import XCTest
 
 @MainActor
@@ -164,6 +165,40 @@ final class RegistrationViewModelTests: XCTestCase {
         // Assert
         XCTAssertNil(weakRegistration, "the registration screen is kept alive after closing")
         XCTAssertNil(weakPay, "the pay screen is kept alive after closing")
+    }
+
+    func testRegistrationView_WhenItsScreensAreShownThenClosed_ShouldFreeBothViewModels(
+    ) async throws {
+        // Arrange
+        weak var weakRegistration: RegistrationViewModel?
+        weak var weakPay: PayTripViewModel?
+
+        // Act: put the Done step and the Pay screen on screen, then take them away.
+        do {
+            let (viewModel, _) = await makeViewModel()
+            try await fillAndSign(viewModel)
+            let pay = try XCTUnwrap(viewModel.payViewModel())
+            let sheet = UIHostingController(rootView: RegistrationView(viewModel: viewModel) { _ in
+            }
+            .theme(.crossdrive))
+            let payScreen = UIHostingController(rootView: NavigationStack {
+                PayTripView(viewModel: pay, onDone: {})
+            }.theme(.crossdrive))
+            for controller in [sheet, payScreen] as [UIViewController] {
+                controller.view.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
+                controller.view.layoutIfNeeded()
+            }
+            await Task.yield()
+            weakRegistration = viewModel
+            weakPay = pay
+        }
+        for _ in 0 ..< 50 where weakRegistration != nil || weakPay != nil {
+            await Task.yield()
+        }
+
+        // Assert
+        XCTAssertNil(weakRegistration, "the registration screen keeps its view model after closing")
+        XCTAssertNil(weakPay, "the pay screen keeps its view model after closing")
     }
 
     func testSteps_ForACamp_ShouldStartOnDetailsWithNoRole() async throws {

@@ -133,8 +133,9 @@ struct RegistrationView: View {
     }
 
     @ViewBuilder private var bottomButton: some View {
-        // The last-slot step brings its own buttons.
-        if viewModel.sendState != .lastSlotTaken {
+        let isLastSlot = viewModel.sendState == .lastSlotTaken
+        // The offline note shows on every step that sends, the last-slot one too.
+        if !viewModel.isDone, !isOnline || !isLastSlot {
             VStack(spacing: 12) {
                 if !isOnline, !viewModel.isDone {
                     EntryStatusLine(
@@ -144,10 +145,8 @@ struct RegistrationView: View {
                         )
                     )
                 }
-                if viewModel.isDone {
-                    Button("Done") { onClose(true) }
-                        .buttonStyle(.ds(.primary))
-                } else {
+                // The last-slot step brings its own button.
+                if !isLastSlot {
                     Button(buttonTitle) {
                         Task { await viewModel.continueTapped() }
                     }
@@ -157,6 +156,12 @@ struct RegistrationView: View {
             .screenMargins()
             .padding(.vertical, 12)
             .background(.regularMaterial)
+        } else if viewModel.isDone {
+            Button("Done") { onClose(true) }
+                .buttonStyle(.ds(.primary))
+                .screenMargins()
+                .padding(.vertical, 12)
+                .background(.regularMaterial)
         }
     }
 }
