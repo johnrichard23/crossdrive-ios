@@ -145,6 +145,27 @@ final class RegistrationViewModelTests: XCTestCase {
         XCTAssertTrue(first === second)
     }
 
+    func testRegistration_WhenTheSheetIsClosedAfterPaying_ShouldFreeBothViewModels() async throws {
+        // Arrange
+        weak var weakRegistration: RegistrationViewModel?
+        weak var weakPay: PayTripViewModel?
+
+        // Act: register, open Pay, say it was sent, then let go of everything.
+        do {
+            let (viewModel, _) = await makeViewModel()
+            try await fillAndSign(viewModel)
+            let pay = try XCTUnwrap(viewModel.payViewModel())
+            await pay.loadQR(maxPixels: 10)
+            await pay.markSent()
+            weakRegistration = viewModel
+            weakPay = pay
+        }
+
+        // Assert
+        XCTAssertNil(weakRegistration, "the registration screen is kept alive after closing")
+        XCTAssertNil(weakPay, "the pay screen is kept alive after closing")
+    }
+
     func testSteps_ForACamp_ShouldStartOnDetailsWithNoRole() async throws {
         // Arrange
         let (viewModel, client) = await makeViewModel(id: "camp-feb")

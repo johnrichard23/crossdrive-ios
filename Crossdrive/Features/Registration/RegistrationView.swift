@@ -13,6 +13,7 @@ struct RegistrationView: View {
     @State private var payViewModel: PayTripViewModel?
 
     @Environment(\.theme) private var theme
+    @Environment(\.isOnline) private var isOnline
 
     init(viewModel: RegistrationViewModel, onClose: @escaping (_ registered: Bool) -> Void) {
         _viewModel = State(initialValue: viewModel)
@@ -63,6 +64,8 @@ struct RegistrationView: View {
             }
         }
         .interactiveDismissDisabled(viewModel.hasUnsavedChanges || viewModel.sendState == .sending)
+        // Medical notes, phone numbers and the payment QR stay out of the app switcher.
+        .privacyCover()
     }
 
     private static let top = "top"
@@ -132,7 +135,15 @@ struct RegistrationView: View {
     @ViewBuilder private var bottomButton: some View {
         // The last-slot step brings its own buttons.
         if viewModel.sendState != .lastSlotTaken {
-            Group {
+            VStack(spacing: 12) {
+                if !isOnline, !viewModel.isDone {
+                    EntryStatusLine(
+                        systemImage: "wifi.slash",
+                        text: String(
+                            localized: "You're offline. Connect to the internet to send your registration."
+                        )
+                    )
+                }
                 if viewModel.isDone {
                     Button("Done") { onClose(true) }
                         .buttonStyle(.ds(.primary))
