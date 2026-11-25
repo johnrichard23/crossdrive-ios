@@ -64,6 +64,7 @@ final class SignInViewModel {
             return fail(emailError != nil ? .email : .password)
         }
 
+        let typed = (email, password)
         let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
         do {
             // The last message stays on screen while the request runs, so the form
@@ -74,6 +75,8 @@ final class SignInViewModel {
         } catch is CancellationError {
             return nil
         } catch {
+            // Edited while waiting: the answer is about values no longer on screen.
+            guard (email, password) == typed else { return nil }
             formError = error.userMessage
             return fail(nil)
         }

@@ -155,6 +155,31 @@ final class SignInViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.formError)
     }
 
+    func testSubmit_WhenFieldsChangeBeforeAFailedAnswer_ShouldShowNoMessage() async {
+        // Arrange: the request waits for the server, then fails.
+        let started = Gate()
+        let release = Gate()
+        let viewModel = SignInViewModel { _ in
+            await started.open()
+            await release.wait()
+            throw AuthError.invalidCredentials
+        }
+        viewModel.email = "dana@example.com"
+        viewModel.password = "nope"
+        let attempt = Task { await viewModel.submit() }
+        await started.wait()
+
+        // Act: the user fixes the password while waiting.
+        viewModel.password = "secret"
+        await release.open()
+        let field = await attempt.value
+
+        // Assert
+        XCTAssertNil(field)
+        XCTAssertNil(viewModel.formError)
+        XCTAssertEqual(viewModel.failureCount, 0)
+    }
+
     func testSubmit_WhenRetryingAfterAFailure_ShouldKeepTheMessageWhileTheRequestRuns() async {
         // Arrange: the first attempt fails, the second waits for the server.
         let started = Gate()
