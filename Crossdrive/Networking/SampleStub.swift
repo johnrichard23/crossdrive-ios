@@ -274,6 +274,8 @@ enum SampleStub {
             .json(ministriesJSON)
         case (.get, "events"):
             .json(eventsJSON)
+        case (.get, "me/trips"):
+            .json(myTripsJSON)
         case (.get, "home"):
             .json(homeJSON(going: CommandLine.arguments.contains("-stub-home-going")))
         case (.post, _):

@@ -1,7 +1,7 @@
 import Foundation
 
 /// An amount in the smallest unit (centavos) and its currency.
-struct Money: Hashable, Sendable {
+struct Money: Codable, Hashable, Sendable {
     let amountMinor: Int
     let currency: String
 

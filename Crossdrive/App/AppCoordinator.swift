@@ -222,6 +222,7 @@ final class AppCoordinator {
             action?()
         case .signedOut:
             services.analytics.track(.signedOut)
+            Task { await container.clearSavedData() }
             // Nothing of the last user's place in the app carries over.
             pendingAction = nil
             pendingLink = nil
