@@ -146,34 +146,13 @@ final class RegistrationViewModelTests: XCTestCase {
         XCTAssertTrue(first === second)
     }
 
-    func testRegistration_WhenTheSheetIsClosedAfterPaying_ShouldFreeBothViewModels() async throws {
-        // Arrange
+    func testRegistrationSheet_WhenPresentedThenDismissed_ShouldFreeBothViewModels() async throws {
+        // Arrange: a window to present on, as the app does over Trip detail.
+        let window = try makeWindow()
         weak var weakRegistration: RegistrationViewModel?
         weak var weakPay: PayTripViewModel?
 
-        // Act: register, open Pay, say it was sent, then let go of everything.
-        do {
-            let (viewModel, _) = await makeViewModel()
-            try await fillAndSign(viewModel)
-            let pay = try XCTUnwrap(viewModel.payViewModel())
-            await pay.loadQR(maxPixels: 10)
-            await pay.markSent()
-            weakRegistration = viewModel
-            weakPay = pay
-        }
-
-        // Assert
-        XCTAssertNil(weakRegistration, "the registration screen is kept alive after closing")
-        XCTAssertNil(weakPay, "the pay screen is kept alive after closing")
-    }
-
-    func testRegistrationView_WhenItsScreensAreShownThenClosed_ShouldFreeBothViewModels(
-    ) async throws {
-        // Arrange
-        weak var weakRegistration: RegistrationViewModel?
-        weak var weakPay: PayTripViewModel?
-
-        // Act: put the Done step and the Pay screen on screen, then take them away.
+        // Act: present the sheet at its Done step, push Pay on top, then dismiss it.
         do {
             let (viewModel, _) = await makeViewModel()
             try await fillAndSign(viewModel)
@@ -184,21 +163,23 @@ final class RegistrationViewModelTests: XCTestCase {
             let payScreen = UIHostingController(rootView: NavigationStack {
                 PayTripView(viewModel: pay, onDone: {})
             }.theme(.crossdrive))
-            for controller in [sheet, payScreen] as [UIViewController] {
-                controller.view.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
-                controller.view.layoutIfNeeded()
-            }
-            await Task.yield()
+            try await present(sheet, on: XCTUnwrap(window.rootViewController))
+            await present(payScreen, on: sheet)
+            try await dismiss(XCTUnwrap(window.rootViewController))
             weakRegistration = viewModel
             weakPay = pay
         }
-        for _ in 0 ..< 50 where weakRegistration != nil || weakPay != nil {
+        for _ in 0 ..< 100 where weakRegistration != nil || weakPay != nil {
             await Task.yield()
         }
 
         // Assert
-        XCTAssertNil(weakRegistration, "the registration screen keeps its view model after closing")
-        XCTAssertNil(weakPay, "the pay screen keeps its view model after closing")
+        XCTAssertNil(
+            weakRegistration,
+            "the registration sheet keeps its view model after it is dismissed"
+        )
+        XCTAssertNil(weakPay, "the pay screen keeps its view model after it is dismissed")
+        window.isHidden = true
     }
 
     func testSteps_ForACamp_ShouldStartOnDetailsWithNoRole() async throws {
@@ -234,6 +215,29 @@ final class RegistrationViewModelTests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    private func makeWindow() throws -> UIWindow {
+        let scene = try XCTUnwrap(
+            UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first,
+            "the tests run inside the app, which has a window scene"
+        )
+        let window = UIWindow(windowScene: scene)
+        window.rootViewController = UIViewController()
+        window.makeKeyAndVisible()
+        return window
+    }
+
+    private func present(_ controller: UIViewController, on presenter: UIViewController) async {
+        await withCheckedContinuation { done in
+            presenter.present(controller, animated: false) { done.resume() }
+        }
+    }
+
+    private func dismiss(_ presenter: UIViewController) async {
+        await withCheckedContinuation { done in
+            presenter.dismiss(animated: false) { done.resume() }
+        }
+    }
 
     private func makeViewModel(
         id: String = "behia",
