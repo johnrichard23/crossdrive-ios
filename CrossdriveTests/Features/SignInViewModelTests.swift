@@ -141,6 +141,32 @@ final class SignInViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.formError)
     }
 
+    func testSubmit_WhenRetryingAfterAFailure_ShouldKeepTheMessageWhileTheRequestRuns() async {
+        // Arrange: the first attempt fails, the second waits for the server.
+        let started = Gate()
+        let release = Gate()
+        let calls = Counter()
+        let viewModel = SignInViewModel { _ in
+            if calls.next() == 1 {
+                throw AuthError.invalidCredentials
+            }
+            await started.open()
+            await release.wait()
+        }
+        viewModel.email = "dana@example.com"
+        viewModel.password = "secret"
+        await viewModel.submit()
+        let retry = Task { await viewModel.submit() }
+        await started.wait()
+
+        // Assert: nothing jumps while the request is out.
+        XCTAssertEqual(viewModel.formError, AuthError.invalidCredentials.userMessage)
+
+        await release.open()
+        await retry.value
+        XCTAssertNil(viewModel.formError)
+    }
+
     func testSubmit_WhenAlreadySigningIn_ShouldSendOnlyOneRequest() async {
         // Arrange: the first attempt waits for the server.
         let started = Gate()
