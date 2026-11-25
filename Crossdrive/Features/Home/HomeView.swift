@@ -2,7 +2,7 @@ import DataLayer
 import DesignSystem
 import SwiftUI
 
-/// Home: the next trip as a ticket, then the latest mission story.
+/// Home: the next trip as a card, then the latest mission story.
 struct HomeView: View {
     @State private var viewModel: HomeViewModel
     @State private var film: HomeStory?
@@ -15,8 +15,6 @@ struct HomeView: View {
     @Environment(\.isOnline) private var isOnline
     @Environment(\.displayScale) private var displayScale
     @Environment(\.horizontalSizeClass) private var sizeClass
-    @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.accountGate) private var accountGate
 
     init(viewModel: HomeViewModel, path: Binding<[EventsRoute]>) {
         _viewModel = State(initialValue: viewModel)
@@ -56,14 +54,8 @@ struct HomeView: View {
                 }
             })
         }
-        .task { await viewModel.keepCountdownCurrent() }
         .onChange(of: containerWidth) { _, _ in
             Task { await viewModel.refreshImages(media: mediaLayout) }
-        }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active {
-                viewModel.refreshCountdown()
-            }
         }
         .sheet(item: $film) { story in
             if let url = story.filmURL {
@@ -84,7 +76,7 @@ struct HomeView: View {
 
     private var mediaLayout: HomeViewModel.MediaLayout {
         HomeViewModel.MediaLayout(
-            tripSize: CGSize(width: 130, height: 130),
+            tripSize: CGSize(width: max(contentWidth - 28, 0), height: HomeTripCard.photoHeight),
             storySize: CGSize(width: contentWidth, height: storyHeight),
             scale: displayScale
         )
@@ -122,18 +114,7 @@ struct HomeView: View {
     }
 
     private var skeleton: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 28) {
-                Text("Next event").textRole(.title3, emphasized: true).hidden()
-                DSSkeletonCard()
-                DSSkeletonCard()
-            }
-            .screenMargins()
-            .padding(.top, 12)
-            .padding(.bottom, 24)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(Text("Loading"))
-        }
+        HomeSkeleton()
     }
 
     private func feed(_ summary: HomeSummary) -> some View {
@@ -161,11 +142,9 @@ struct HomeView: View {
                 Text(trip.isGoing ? "Your event" : "Next event")
                     .textRole(.title3, emphasized: true)
                     .accessibilityAddTraits(.isHeader)
-                HomeTicket(
+                HomeTripCard(
                     trip: trip,
-                    countdown: viewModel.countdown,
                     photo: viewModel.tripImage,
-                    onRegister: { accountGate(for: trip.event.gateTrip) {} },
                     onOpenTrip: { path.append(.detail(trip.event.id)) }
                 )
             } else {

@@ -42,26 +42,6 @@ struct HomeTrip: Hashable, Sendable {
         }
         return (origin, destination)
     }
-
-    /// The big number and the words under it, for the day `now`. `nil` once the
-    /// trip is over.
-    func countdown(now: Date) -> HomeCountdown? {
-        if let endsAt = event.endsAt, now > endsAt {
-            return nil
-        }
-        let title = event.title
-        switch event.daysUntilStart(from: now) {
-        case ..<0: return HomeCountdown(number: "Now", caption: "the \(title) is on")
-        case 0: return HomeCountdown(number: "Today", caption: "the \(title) begins")
-        case 1: return HomeCountdown(number: "1", caption: "day until the \(title)")
-        case let days: return HomeCountdown(number: "\(days)", caption: "days until the \(title)")
-        }
-    }
-}
-
-struct HomeCountdown: Hashable, Sendable {
-    var number: String
-    var caption: String
 }
 
 /// The latest mission story, shown as the film card.

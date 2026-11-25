@@ -53,6 +53,8 @@ enum CDColor {
     static let onHarvest = DesignSystem.color(light: 0x151E1D, dark: 0x151E1D)
     static let brandSoft = DesignSystem.color(light: 0xECE4FA, dark: 0x2B2442)
     static let onBrandSoft = DesignSystem.color(light: 0x573693, dark: 0xD4C4F5)
+    /// The light lavender-gray fill behind small fact chips.
+    static let chipFill = DesignSystem.color(light: 0xDFE1F0, dark: 0x2B2F44)
     /// `brandSoft` while pressed.
     static let brandSoftPressed = DesignSystem.color(light: 0xDFD2F6, dark: 0x362D52)
     /// The Pine panel (verse and prayer cards) and the colours used on it.

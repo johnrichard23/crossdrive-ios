@@ -32,6 +32,16 @@ final class EventTests: XCTestCase {
         }
     }
 
+    func testStartDateParts_WhenUtcIsStillTheDayBefore_ShouldReadInManilaTime() {
+        // Arrange: 2026-12-11 22:00 UTC is Dec 12, 6 AM in Manila.
+        let event = event(start: "2026-12-11T22:00:00Z", end: nil)
+
+        // Act and Assert
+        XCTAssertEqual(event.startDayNumber, "12")
+        XCTAssertEqual(event.startMonthAbbreviation, "Dec")
+        XCTAssertEqual(event.startMonthName, "December")
+    }
+
     func testSlotsLabel_ForEachCase_ShouldSayHowManyAreLeft() {
         // Arrange
         let cases = [

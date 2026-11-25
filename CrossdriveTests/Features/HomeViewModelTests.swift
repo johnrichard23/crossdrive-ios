@@ -186,41 +186,6 @@ final class HomeViewModelTests: XCTestCase {
         XCTAssertNotNil(viewModel.state.value)
     }
 
-    func testRefreshCountdown_WhenTheDayChanges_ShouldUpdateTheNumber() async {
-        // Arrange
-        let clock = HomeTestClock(start: ISO8601DateFormatter()
-            .date(from: "2026-11-20T02:00:00Z") ?? .now)
-        let client = StubHTTPClient { _ in .json(homeJSON) }
-        let viewModel = HomeViewModel(
-            api: HomeAPI(client: client),
-            eventsAPI: EventsAPI(client: client),
-            imageLoader: FakeImageLoader(),
-            snapshotter: FakeSnapshotter(),
-            now: { clock.now }
-        )
-        await viewModel.load()
-        let before = viewModel.countdown?.number
-
-        // Act
-        clock.advance(by: 24 * 3600)
-        viewModel.refreshCountdown()
-
-        // Assert
-        XCTAssertEqual(before, "22")
-        XCTAssertEqual(viewModel.countdown?.number, "21")
-    }
-
-    func testSecondsUntilNextManilaMidnight_WhenAnHourBefore_ShouldBeJustOverAnHour() throws {
-        // Arrange: 23:00 in Manila on Nov 20.
-        let date = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-11-20T15:00:00Z"))
-
-        // Act
-        let seconds = HomeViewModel.secondsUntilNextManilaMidnight(from: date)
-
-        // Assert
-        XCTAssertEqual(seconds, 3601, accuracy: 0.5)
-    }
-
     func testLoad_WhenARefreshChangesThePhoto_ShouldDropTheOldPhotoAtOnce() async {
         // Arrange: the first load is quick; later photo loads wait.
         let calls = Counter()
@@ -281,23 +246,6 @@ final class HomeViewModelTests: XCTestCase {
             mediaDeadline: { try? await Task.sleep(for: .seconds(60)) }
         )
         return (viewModel, client)
-    }
-}
-
-private final class HomeTestClock: @unchecked Sendable {
-    private let lock = NSLock()
-    private var current: Date
-
-    init(start: Date) {
-        current = start
-    }
-
-    var now: Date {
-        lock.withLock { current }
-    }
-
-    func advance(by seconds: TimeInterval) {
-        lock.withLock { current = current.addingTimeInterval(seconds) }
     }
 }
 

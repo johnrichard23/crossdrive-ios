@@ -43,6 +43,21 @@ if [ -n "$files" ] && ats=$(echo "$files" | grep -E '\.(plist|xcconfig)$' | xarg
   status=1
 fi
 
+# Any other ATS exception key is a hole in transport security too.
+if [ -n "$files" ] && ats=$(echo "$files" | grep -E '\.(plist|xcconfig)$' | xargs grep -nE 'NSExceptionDomains|NSAllowsArbitraryLoadsInWebContent|NSAllowsArbitraryLoadsForMedia|NSExceptionAllowsInsecureHTTPLoads|NSExceptionMinimumTLSVersion|NSExceptionRequiresForwardSecrecy' 2>/dev/null); then
+  echo "check-secrets: App Transport Security exceptions are not allowed:"
+  echo "$ats"
+  status=1
+fi
+
+# Code that answers a server-trust challenge itself can accept any certificate.
+# Let the system decide (.performDefaultHandling) instead.
+if [ -n "$files" ] && trust=$(echo "$files" | grep -E '\.swift$' | xargs grep -nE 'SecTrustSetExceptions|URLCredential\(trust:' 2>/dev/null); then
+  echo "check-secrets: server-trust checks must not be overridden:"
+  echo "$trust" | cut -c1-160
+  status=1
+fi
+
 if [ $status -eq 0 ]; then
   echo "check-secrets: nothing found"
 fi
