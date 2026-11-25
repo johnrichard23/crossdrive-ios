@@ -11,8 +11,6 @@ final class HomeViewModel {
     /// The next trip's photo and the film card's photo, decoded at the size shown.
     private(set) var tripImage: UIImage?
     private(set) var storyImage: UIImage?
-    /// The big number and its words, worked out once per load and per day change.
-    private(set) var countdown: HomeCountdown?
     var toast: DSToast?
 
     /// Where the two photos are shown, so they are ready before the screen appears.
@@ -27,9 +25,11 @@ final class HomeViewModel {
     private let snapshotter: any MapSnapshotting
     private let reporter: any CrashReporter
     private let imageLoader: any ImageLoading
-    private let now: @Sendable () -> Date
     private let mediaDeadline: @Sendable () async -> Void
     private var loadToken = 0
+    /// The size the newest photo loads were made for. A photo made for an older
+    /// size that arrives late is dropped, so it can't replace a sharper one.
+    @ObservationIgnored private var mediaInUse: MediaLayout?
     /// The detail view models for the trips open in Home's stack, so a re-render
     /// does not build a new one each time.
     @ObservationIgnored private var detailModels: [Event.ID: EventDetailViewModel] = [:]
@@ -40,7 +40,6 @@ final class HomeViewModel {
         imageLoader: any ImageLoading,
         snapshotter: any MapSnapshotting,
         reporter: any CrashReporter = NoCrashReporter(),
-        now: @escaping @Sendable () -> Date = { Date() },
         mediaDeadline: @escaping @Sendable () async -> Void = {
             try? await Task.sleep(for: .seconds(3))
         }
@@ -50,7 +49,6 @@ final class HomeViewModel {
         self.snapshotter = snapshotter
         self.imageLoader = imageLoader
         self.reporter = reporter
-        self.now = now
         self.mediaDeadline = mediaDeadline
     }
 
@@ -111,39 +109,6 @@ final class HomeViewModel {
         detailModels = detailModels.filter { ids.contains($0.key) }
     }
 
-    /// The app is back in front: the number may have changed at midnight.
-    func refreshCountdown() {
-        countdown = state.value?.trip?.countdown(now: now())
-    }
-
-    /// Keeps the countdown right while Home stays on screen: waits for the next
-    /// midnight in Manila, then works the number out again. Stops when the
-    /// caller's task is cancelled (the person left).
-    func keepCountdownCurrent() async {
-        while !Task.isCancelled {
-            let wait = Self.secondsUntilNextManilaMidnight(from: now())
-            do {
-                try await Task.sleep(for: .seconds(wait))
-            } catch {
-                return
-            }
-            refreshCountdown()
-        }
-    }
-
-    /// Seconds from `date` to the next midnight in Manila (a second past it, so
-    /// the new day has surely started).
-    static func secondsUntilNextManilaMidnight(from date: Date) -> TimeInterval {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "Asia/Manila") ?? .current
-        let midnight = calendar.nextDate(
-            after: date,
-            matching: DateComponents(hour: 0, minute: 0, second: 0),
-            matchingPolicy: .nextTime
-        )
-        return max((midnight?.timeIntervalSince(date) ?? 3600) + 1, 1)
-    }
-
     /// The screen's size changed: make the photos again at the new size.
     func refreshImages(media: MediaLayout) async {
         guard let summary = state.value else { return }
@@ -188,34 +153,36 @@ final class HomeViewModel {
         media: MediaLayout,
         token: Int
     ) -> [@Sendable () async -> Void] {
+        mediaInUse = media
         let loader = imageLoader
         var loads: [@Sendable () async -> Void] = []
         if let url = summary.trip?.event.heroImageURL {
             let pixels = ImageDownsampler.maxPixels(for: media.tripSize, scale: media.scale)
             loads.append { [weak self] in
                 let image = await loader.image(for: url, maxPixels: pixels)
-                await self?.setTripImage(image, token: token)
+                await self?.setTripImage(image, token: token, media: media)
             }
         }
         if let url = summary.latestStory?.imageURL {
             let pixels = ImageDownsampler.maxPixels(for: media.storySize, scale: media.scale)
             loads.append { [weak self] in
                 let image = await loader.image(for: url, maxPixels: pixels)
-                await self?.setStoryImage(image, token: token)
+                await self?.setStoryImage(image, token: token, media: media)
             }
         }
         return loads
     }
 
-    /// A photo that arrives after a newer load began belongs to older content: drop it.
-    private func setTripImage(_ image: UIImage?, token: Int) {
-        if let image, token == loadToken {
+    /// A photo that arrives after a newer load began, or that was made for an
+    /// older size, is out of date: drop it.
+    private func setTripImage(_ image: UIImage?, token: Int, media: MediaLayout) {
+        if let image, token == loadToken, media == mediaInUse {
             tripImage = image
         }
     }
 
-    private func setStoryImage(_ image: UIImage?, token: Int) {
-        if let image, token == loadToken {
+    private func setStoryImage(_ image: UIImage?, token: Int, media: MediaLayout) {
+        if let image, token == loadToken, media == mediaInUse {
             storyImage = image
         }
     }
@@ -232,7 +199,6 @@ final class HomeViewModel {
             }
         }
         state = .loaded(summary)
-        countdown = summary.trip?.countdown(now: now())
     }
 
     /// A reply the app can't read is a bug, not the user's problem: report it.

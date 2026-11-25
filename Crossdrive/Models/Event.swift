@@ -132,6 +132,21 @@ struct Event: Identifiable, Hashable, Sendable {
         Self.weekdayMonthDay.format(startsAt)
     }
 
+    /// "12": the day of the month of the first day, in Manila time.
+    var startDayNumber: String {
+        Self.dayOfMonth.format(startsAt)
+    }
+
+    /// "December": the full month of the first day, for VoiceOver.
+    var startMonthName: String {
+        Self.monthName.format(startsAt)
+    }
+
+    /// "Dec": the month of the first day, in Manila time.
+    var startMonthAbbreviation: String {
+        Self.month.format(startsAt)
+    }
+
     /// "Pay before Dec 12": the fee is due by the first day.
     var payBeforeLabel: String {
         "Pay before \(Self.monthDay.format(startsAt))"
@@ -189,6 +204,7 @@ struct Event: Identifiable, Hashable, Sendable {
 
     private static let monthDay = style().month(.abbreviated).day()
     private static let month = style().month(.abbreviated)
+    private static let monthName = style().month(.wide)
     private static let dayOfMonth = style().day()
     private static let weekdayMonthDay = style().weekday(.wide).month(.abbreviated).day()
 }

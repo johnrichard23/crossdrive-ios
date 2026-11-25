@@ -71,15 +71,17 @@ struct MinistriesView: View {
         }
     }
 
+    /// The give banner is real and stays; only the cards wait for their data.
     private var skeleton: some View {
         ScrollView {
-            VStack(spacing: theme.spacing.groupGap) {
-                ForEach(0 ..< 3, id: \.self) { _ in DSSkeletonCard() }
+            VStack(spacing: 16) {
+                giveBanner
+                MinistriesSkeleton()
             }
             .screenMargins()
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(Text("Loading"))
+            .padding(.bottom, theme.spacing.groupGap)
         }
+        .scrollDisabled(true)
     }
 
     private func list(_ ministries: [Ministry]) -> some View {

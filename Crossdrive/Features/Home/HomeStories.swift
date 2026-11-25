@@ -13,7 +13,6 @@ struct HomeStories: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 8) {
-                CDLanes(color: theme.accent)
                 Text("Mission stories")
                     .textRole(.title3, emphasized: true)
                     .accessibilityAddTraits(.isHeader)

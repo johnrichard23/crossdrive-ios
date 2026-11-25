@@ -186,41 +186,6 @@ final class HomeViewModelTests: XCTestCase {
         XCTAssertNotNil(viewModel.state.value)
     }
 
-    func testRefreshCountdown_WhenTheDayChanges_ShouldUpdateTheNumber() async {
-        // Arrange
-        let clock = HomeTestClock(start: ISO8601DateFormatter()
-            .date(from: "2026-11-20T02:00:00Z") ?? .now)
-        let client = StubHTTPClient { _ in .json(homeJSON) }
-        let viewModel = HomeViewModel(
-            api: HomeAPI(client: client),
-            eventsAPI: EventsAPI(client: client),
-            imageLoader: FakeImageLoader(),
-            snapshotter: FakeSnapshotter(),
-            now: { clock.now }
-        )
-        await viewModel.load()
-        let before = viewModel.countdown?.number
-
-        // Act
-        clock.advance(by: 24 * 3600)
-        viewModel.refreshCountdown()
-
-        // Assert
-        XCTAssertEqual(before, "22")
-        XCTAssertEqual(viewModel.countdown?.number, "21")
-    }
-
-    func testSecondsUntilNextManilaMidnight_WhenAnHourBefore_ShouldBeJustOverAnHour() throws {
-        // Arrange: 23:00 in Manila on Nov 20.
-        let date = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-11-20T15:00:00Z"))
-
-        // Act
-        let seconds = HomeViewModel.secondsUntilNextManilaMidnight(from: date)
-
-        // Assert
-        XCTAssertEqual(seconds, 3601, accuracy: 0.5)
-    }
-
     func testLoad_WhenARefreshChangesThePhoto_ShouldDropTheOldPhotoAtOnce() async {
         // Arrange: the first load is quick; later photo loads wait.
         let calls = Counter()
@@ -269,6 +234,45 @@ final class HomeViewModelTests: XCTestCase {
         XCTAssertNotNil(viewModel.tripImage)
     }
 
+    func testRefreshImages_WhenAnOlderSizeFinishesLast_ShouldKeepTheNewerSizesPhoto() async {
+        // Arrange: the first load is quick; the photos for the first new size wait.
+        let calls = Counter()
+        let started = Recorder<Int>()
+        let hold = Gate()
+        let client = StubHTTPClient { _ in .json(homeJSON) }
+        let viewModel = HomeViewModel(
+            api: HomeAPI(client: client),
+            eventsAPI: EventsAPI(client: client),
+            imageLoader: FakeImageLoader(beforeReturning: {
+                let call = calls.next()
+                started.add(call)
+                if call == 3 || call == 4 {
+                    await hold.wait()
+                }
+            }),
+            snapshotter: FakeSnapshotter(),
+            mediaDeadline: { try? await Task.sleep(for: .seconds(60)) }
+        )
+        func media(_ side: CGFloat) -> HomeViewModel.MediaLayout {
+            let size = CGSize(width: side, height: side)
+            return HomeViewModel.MediaLayout(tripSize: size, storySize: size, scale: 1)
+        }
+        await viewModel.load(media: media(10))
+
+        // Act: resize to 20 (slow), then to 30 (quick); the 20 photos land last.
+        let older = Task { await viewModel.refreshImages(media: media(20)) }
+        while started.values.count < 4 {
+            await Task.yield()
+        }
+        await viewModel.refreshImages(media: media(30))
+        await hold.open()
+        await older.value
+
+        // Assert
+        XCTAssertEqual(viewModel.tripImage?.size.width, 30)
+        XCTAssertEqual(viewModel.storyImage?.size.width, 30)
+    }
+
     private func makeViewModel(
         _ handler: @escaping @Sendable (Endpoint) async throws -> HTTPResponse
     ) -> (HomeViewModel, StubHTTPClient) {
@@ -281,23 +285,6 @@ final class HomeViewModelTests: XCTestCase {
             mediaDeadline: { try? await Task.sleep(for: .seconds(60)) }
         )
         return (viewModel, client)
-    }
-}
-
-private final class HomeTestClock: @unchecked Sendable {
-    private let lock = NSLock()
-    private var current: Date
-
-    init(start: Date) {
-        current = start
-    }
-
-    var now: Date {
-        lock.withLock { current }
-    }
-
-    func advance(by seconds: TimeInterval) {
-        lock.withLock { current = current.addingTimeInterval(seconds) }
     }
 }
 
