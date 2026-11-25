@@ -92,7 +92,7 @@ final class SignInViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.formError)
     }
 
-    func testSubmit_WhenCredentialsAreWrong_ShouldShowOneMessageAndFocusThePassword() async {
+    func testSubmit_WhenCredentialsAreWrong_ShouldShowOneFormMessage() async {
         // Arrange
         let viewModel = SignInViewModel { _ in throw AuthError.invalidCredentials }
         viewModel.email = "dana@example.com"
@@ -102,7 +102,7 @@ final class SignInViewModelTests: XCTestCase {
         let field = await viewModel.submit()
 
         // Assert
-        XCTAssertEqual(field, .password)
+        XCTAssertNil(field, "must not single out either field")
         XCTAssertEqual(viewModel.formError, AuthError.invalidCredentials.userMessage)
         XCTAssertNil(viewModel.emailError, "must not hint at which of the two was wrong")
         XCTAssertEqual(viewModel.failureCount, 1)
@@ -136,6 +136,20 @@ final class SignInViewModelTests: XCTestCase {
 
         // Act
         await viewModel.submit()
+
+        // Assert
+        XCTAssertNil(viewModel.formError)
+    }
+
+    func testEmail_WhenEditedAfterAFailure_ShouldClearTheOldMessage() async {
+        // Arrange
+        let viewModel = SignInViewModel { _ in throw AuthError.invalidCredentials }
+        viewModel.email = "dana@example.com"
+        viewModel.password = "nope"
+        await viewModel.submit()
+
+        // Act
+        viewModel.email = "dana@example.org"
 
         // Assert
         XCTAssertNil(viewModel.formError)
@@ -189,5 +203,10 @@ final class SignInViewModelTests: XCTestCase {
 
         // Assert
         XCTAssertEqual(calls.next(), 2, "signIn should have been called exactly once before this")
+        XCTAssertEqual(
+            viewModel.failureCount,
+            0,
+            "an ignored tap is not a failure, so nothing shakes"
+        )
     }
 }

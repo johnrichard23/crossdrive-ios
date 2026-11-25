@@ -63,6 +63,14 @@ struct SignInView: View {
                 .buttonStyle(.ds(.primary, isLoading: viewModel.isSubmitting))
         }
         .dsHaptic(.error, trigger: viewModel.failureCount)
+        .onChange(of: viewModel.failureCount) {
+            // A form-level failure shakes the message. Bumped after the update that
+            // shows the banner, so its first appearance shakes too; an ignored
+            // second tap changes nothing.
+            if viewModel.formError != nil {
+                formShakes += 1
+            }
+        }
         .privacyCover()
         .onChange(of: emailFocused) { wasFocused, isFocused in
             if wasFocused, !isFocused {
@@ -86,9 +94,9 @@ struct SignInView: View {
                 passwordFocused = true
                 passwordShakes += 1
             case nil:
-                // A problem that isn't about one field (offline, server): shake the message.
+                // Ready to try again; the message, not the field, shakes.
                 if viewModel.formError != nil {
-                    formShakes += 1
+                    passwordFocused = true
                 }
             }
         }

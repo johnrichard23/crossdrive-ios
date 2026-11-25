@@ -10,8 +10,23 @@ final class SignInViewModel {
         case password
     }
 
-    var email = ""
-    var password = ""
+    /// Editing either field clears an old form message: it was about other values.
+    var email = "" {
+        didSet {
+            if email != oldValue {
+                formError = nil
+            }
+        }
+    }
+
+    var password = "" {
+        didSet {
+            if password != oldValue {
+                formError = nil
+            }
+        }
+    }
+
     private(set) var emailError: String?
     private(set) var passwordError: String?
     private(set) var formError: String?
@@ -58,9 +73,6 @@ final class SignInViewModel {
             return nil
         } catch is CancellationError {
             return nil
-        } catch AuthError.invalidCredentials {
-            formError = AuthError.invalidCredentials.userMessage
-            return fail(.password)
         } catch {
             formError = error.userMessage
             return fail(nil)

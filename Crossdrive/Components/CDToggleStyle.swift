@@ -33,25 +33,56 @@ struct CDToggleStyle: ToggleStyle {
 
     private func switchView(isOn: Bool) -> some View {
         typealias Slide = DesignSystem.Motion.Toggle
-        let rest = isOn ? Slide.travel : 0
-        // The thumb is placed at its end position at once; the animator then
-        // carries it from where it was to there, with the double bounce.
         return Capsule()
             .fill(isOn ? theme.accent : theme.surfacePressed)
             .frame(width: Slide.trackWidth, height: Slide.trackHeight)
             .overlay(alignment: .leading) {
-                Circle()
-                    .fill(Color.white)
-                    .frame(width: Slide.thumbSize, height: Slide.thumbSize)
-                    .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
-                    .padding(2)
-                    .keyframeAnimator(initialValue: CGFloat.zero, trigger: isOn) { thumb, delta in
-                        // Right-to-left layouts slide the other way.
-                        let direction: CGFloat = layoutDirection == .rightToLeft ? -1 : 1
-                        thumb.offset(x: direction * (rest + (reduceMotion ? 0 : delta)))
-                    } keyframes: { _ in
-                        Slide.slide(isOn: isOn)
-                    }
+                SwitchThumb(
+                    isOn: isOn,
+                    layoutDirection: layoutDirection,
+                    reduceMotion: reduceMotion
+                )
+            }
+    }
+}
+
+/// The thumb. Each flip starts a new run: the double bounce from rest, or a
+/// plain spring from where it is when flipped back mid-slide.
+private struct SwitchThumb: View {
+    typealias Slide = DesignSystem.Motion.Toggle
+
+    let isOn: Bool
+    let layoutDirection: LayoutDirection
+    let reduceMotion: Bool
+
+    @State private var run: DesignSystem.Motion.ToggleRun
+    @State private var startedAt = Date.distantPast
+
+    init(isOn: Bool, layoutDirection: LayoutDirection, reduceMotion: Bool) {
+        self.isOn = isOn
+        self.layoutDirection = layoutDirection
+        self.reduceMotion = reduceMotion
+        _run = State(initialValue: .resting(isOn: isOn))
+    }
+
+    var body: some View {
+        Circle()
+            .fill(Color.white)
+            .frame(width: Slide.thumbSize, height: Slide.thumbSize)
+            .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
+            .padding(2)
+            .keyframeAnimator(initialValue: CGFloat.zero, trigger: run) { thumb, delta in
+                // Right-to-left layouts slide the other way.
+                let direction: CGFloat = layoutDirection == .rightToLeft ? -1 : 1
+                let rest = Slide.rest(isOn: run.isOn)
+                thumb.offset(x: direction * (rest + (reduceMotion ? 0 : delta)))
+            } keyframes: { _ in
+                Slide.track(for: run)
+            }
+            .onChange(of: isOn) { _, isOn in
+                let now = Date.now
+                run = Slide.run(after: run, to: isOn, elapsed: now.timeIntervalSince(startedAt))
+                startedAt = now
             }
     }
 }
