@@ -27,6 +27,9 @@ final class HomeViewModel {
     private let imageLoader: any ImageLoading
     private let mediaDeadline: @Sendable () async -> Void
     private var loadToken = 0
+    /// The size the newest photo loads were made for. A photo made for an older
+    /// size that arrives late is dropped, so it can't replace a sharper one.
+    @ObservationIgnored private var mediaInUse: MediaLayout?
     /// The detail view models for the trips open in Home's stack, so a re-render
     /// does not build a new one each time.
     @ObservationIgnored private var detailModels: [Event.ID: EventDetailViewModel] = [:]
@@ -150,34 +153,36 @@ final class HomeViewModel {
         media: MediaLayout,
         token: Int
     ) -> [@Sendable () async -> Void] {
+        mediaInUse = media
         let loader = imageLoader
         var loads: [@Sendable () async -> Void] = []
         if let url = summary.trip?.event.heroImageURL {
             let pixels = ImageDownsampler.maxPixels(for: media.tripSize, scale: media.scale)
             loads.append { [weak self] in
                 let image = await loader.image(for: url, maxPixels: pixels)
-                await self?.setTripImage(image, token: token)
+                await self?.setTripImage(image, token: token, media: media)
             }
         }
         if let url = summary.latestStory?.imageURL {
             let pixels = ImageDownsampler.maxPixels(for: media.storySize, scale: media.scale)
             loads.append { [weak self] in
                 let image = await loader.image(for: url, maxPixels: pixels)
-                await self?.setStoryImage(image, token: token)
+                await self?.setStoryImage(image, token: token, media: media)
             }
         }
         return loads
     }
 
-    /// A photo that arrives after a newer load began belongs to older content: drop it.
-    private func setTripImage(_ image: UIImage?, token: Int) {
-        if let image, token == loadToken {
+    /// A photo that arrives after a newer load began, or that was made for an
+    /// older size, is out of date: drop it.
+    private func setTripImage(_ image: UIImage?, token: Int, media: MediaLayout) {
+        if let image, token == loadToken, media == mediaInUse {
             tripImage = image
         }
     }
 
-    private func setStoryImage(_ image: UIImage?, token: Int) {
-        if let image, token == loadToken {
+    private func setStoryImage(_ image: UIImage?, token: Int, media: MediaLayout) {
+        if let image, token == loadToken, media == mediaInUse {
             storyImage = image
         }
     }

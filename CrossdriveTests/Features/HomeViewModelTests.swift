@@ -234,6 +234,45 @@ final class HomeViewModelTests: XCTestCase {
         XCTAssertNotNil(viewModel.tripImage)
     }
 
+    func testRefreshImages_WhenAnOlderSizeFinishesLast_ShouldKeepTheNewerSizesPhoto() async {
+        // Arrange: the first load is quick; the photos for the first new size wait.
+        let calls = Counter()
+        let started = Recorder<Int>()
+        let hold = Gate()
+        let client = StubHTTPClient { _ in .json(homeJSON) }
+        let viewModel = HomeViewModel(
+            api: HomeAPI(client: client),
+            eventsAPI: EventsAPI(client: client),
+            imageLoader: FakeImageLoader(beforeReturning: {
+                let call = calls.next()
+                started.add(call)
+                if call == 3 || call == 4 {
+                    await hold.wait()
+                }
+            }),
+            snapshotter: FakeSnapshotter(),
+            mediaDeadline: { try? await Task.sleep(for: .seconds(60)) }
+        )
+        func media(_ side: CGFloat) -> HomeViewModel.MediaLayout {
+            let size = CGSize(width: side, height: side)
+            return HomeViewModel.MediaLayout(tripSize: size, storySize: size, scale: 1)
+        }
+        await viewModel.load(media: media(10))
+
+        // Act: resize to 20 (slow), then to 30 (quick); the 20 photos land last.
+        let older = Task { await viewModel.refreshImages(media: media(20)) }
+        while started.values.count < 4 {
+            await Task.yield()
+        }
+        await viewModel.refreshImages(media: media(30))
+        await hold.open()
+        await older.value
+
+        // Assert
+        XCTAssertEqual(viewModel.tripImage?.size.width, 30)
+        XCTAssertEqual(viewModel.storyImage?.size.width, 30)
+    }
+
     private func makeViewModel(
         _ handler: @escaping @Sendable (Endpoint) async throws -> HTTPResponse
     ) -> (HomeViewModel, StubHTTPClient) {

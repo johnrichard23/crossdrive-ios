@@ -44,7 +44,7 @@ if [ -n "$files" ] && ats=$(echo "$files" | grep -E '\.(plist|xcconfig)$' | xarg
 fi
 
 # Any other ATS exception key is a hole in transport security too.
-if [ -n "$files" ] && ats=$(echo "$files" | grep -E '\.(plist|xcconfig)$' | xargs grep -nE 'NSExceptionDomains|NSAllowsArbitraryLoadsInWebContent|NSAllowsArbitraryLoadsForMedia|NSExceptionAllowsInsecureHTTPLoads|NSExceptionMinimumTLSVersion|NSExceptionRequiresForwardSecrecy' 2>/dev/null); then
+if [ -n "$files" ] && ats=$(echo "$files" | grep -E '\.(plist|xcconfig)$' | xargs grep -nE 'NSExceptionDomains|NSAllowsArbitraryLoadsInWebContent|NSAllowsArbitraryLoadsForMedia|NSAllowsLocalNetworking|NSExceptionAllowsInsecureHTTPLoads|NSExceptionMinimumTLSVersion|NSExceptionRequiresForwardSecrecy' 2>/dev/null); then
   echo "check-secrets: App Transport Security exceptions are not allowed:"
   echo "$ats"
   status=1
@@ -52,9 +52,13 @@ fi
 
 # Code that answers a server-trust challenge itself can accept any certificate.
 # Let the system decide (.performDefaultHandling) instead.
-if [ -n "$files" ] && trust=$(echo "$files" | grep -E '\.swift$' | xargs grep -nE 'SecTrustSetExceptions|URLCredential\(trust:' 2>/dev/null); then
+# Each file is read whole, so a call split across lines is caught too.
+trust=$(echo "$files" | grep -E '\.swift$' | while IFS= read -r file; do
+  perl -0777 -ne 'print "$ARGV\n" if /SecTrustSetExceptions|URLCredential\s*\(\s*trust\s*:/' "$file" 2>/dev/null
+done)
+if [ -n "$trust" ]; then
   echo "check-secrets: server-trust checks must not be overridden:"
-  echo "$trust" | cut -c1-160
+  echo "$trust"
   status=1
 fi
 
