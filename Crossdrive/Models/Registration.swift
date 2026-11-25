@@ -50,6 +50,12 @@ struct RegistrationForm: Equatable, Sendable {
     var guardianName = ""
     var guardianMobile = ""
 
+    /// "Signed today, Nov 25, 2026." under the signature line.
+    static func signedLabel(on date: Date) -> String {
+        let day = date.formatted(.dateTime.month(.abbreviated).day().year())
+        return String(localized: "Signed today, \(day).")
+    }
+
     /// A minor on a trip needs a parent or guardian; on a camp the permit is
     /// optional (camps are for adults).
     func needsGuardian(for kind: EventKind) -> Bool {

@@ -23,8 +23,7 @@ struct CDStepRow: View {
                         Text(titles[index])
                             .textRole(.caption1, emphasized: index <= current)
                             .foregroundStyle(color(for: index))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
+                            .multilineTextAlignment(.center)
                     }
                 }
                 .frame(maxWidth: .infinity)

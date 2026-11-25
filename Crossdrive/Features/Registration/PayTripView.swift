@@ -1,3 +1,4 @@
+import DataLayer
 import DesignSystem
 import Photos
 import SwiftUI
@@ -14,6 +15,7 @@ struct PayTripView: View {
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
     @Environment(\.displayScale) private var displayScale
+    @Environment(\.isOnline) private var isOnline
 
     private static let qrSide: CGFloat = 118
 
@@ -220,6 +222,14 @@ struct PayTripView: View {
     private var buttons: some View {
         VStack(spacing: 4) {
             if viewModel.progress == .toPay {
+                if !isOnline {
+                    EntryStatusLine(
+                        systemImage: "wifi.slash",
+                        text: String(
+                            localized: "You're offline. Connect to the internet to tell us you sent it."
+                        )
+                    )
+                }
                 Button("I've sent it") { Task { await viewModel.markSent() } }
                     .buttonStyle(.ds(.primary, isLoading: viewModel.isSending))
                 Button("Pay later") { dismiss() }
@@ -256,4 +266,31 @@ struct PayTripView: View {
             viewModel.toast = .error(String(localized: "Couldn't save the QR code. Try again."))
         }
     }
+}
+
+#Preview("To pay") {
+    NavigationStack {
+        PayTripView(
+            viewModel: PayTripViewModel(
+                detail: EventDetail(
+                    event: Event.placeholders[0], summary: "", background: "", photoURLs: [],
+                    roles: [],
+                    covers: [], bringList: [], pay: EventPay(
+                        qrURL: nil,
+                        gcashNumber: "0917 000 0000"
+                    )
+                ),
+                registration: RegistrationResult(
+                    id: "r",
+                    status: .pending,
+                    reference: "CD-0187",
+                    isPermitWaiting: false
+                ),
+                api: EventsAPI(client: StubHTTPClient(SampleStub.handle)),
+                imageLoader: URLSessionImageLoader()
+            ),
+            onDone: {}
+        )
+    }
+    .theme(.crossdrive)
 }

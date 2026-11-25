@@ -1,5 +1,6 @@
 @testable import Crossdrive
 import DataLayer
+import SwiftUI
 import XCTest
 
 @MainActor
@@ -145,6 +146,42 @@ final class RegistrationViewModelTests: XCTestCase {
         XCTAssertTrue(first === second)
     }
 
+    func testRegistrationSheet_WhenPresentedThenDismissed_ShouldFreeBothViewModels() async throws {
+        // Arrange: a window to present on, as the app does over Trip detail.
+        let window = try makeWindow()
+        weak var weakRegistration: RegistrationViewModel?
+        weak var weakPay: PayTripViewModel?
+
+        // Act: present the sheet at its Done step, push Pay on top, then dismiss it.
+        do {
+            let (viewModel, _) = await makeViewModel()
+            try await fillAndSign(viewModel)
+            let pay = try XCTUnwrap(viewModel.payViewModel())
+            let sheet = UIHostingController(rootView: RegistrationView(viewModel: viewModel) { _ in
+            }
+            .theme(.crossdrive))
+            let payScreen = UIHostingController(rootView: NavigationStack {
+                PayTripView(viewModel: pay, onDone: {})
+            }.theme(.crossdrive))
+            try await present(sheet, on: XCTUnwrap(window.rootViewController))
+            await present(payScreen, on: sheet)
+            try await dismiss(XCTUnwrap(window.rootViewController))
+            weakRegistration = viewModel
+            weakPay = pay
+        }
+        for _ in 0 ..< 100 where weakRegistration != nil || weakPay != nil {
+            await Task.yield()
+        }
+
+        // Assert
+        XCTAssertNil(
+            weakRegistration,
+            "the registration sheet keeps its view model after it is dismissed"
+        )
+        XCTAssertNil(weakPay, "the pay screen keeps its view model after it is dismissed")
+        window.isHidden = true
+    }
+
     func testSteps_ForACamp_ShouldStartOnDetailsWithNoRole() async throws {
         // Arrange
         let (viewModel, client) = await makeViewModel(id: "camp-feb")
@@ -178,6 +215,29 @@ final class RegistrationViewModelTests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    private func makeWindow() throws -> UIWindow {
+        let scene = try XCTUnwrap(
+            UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first,
+            "the tests run inside the app, which has a window scene"
+        )
+        let window = UIWindow(windowScene: scene)
+        window.rootViewController = UIViewController()
+        window.makeKeyAndVisible()
+        return window
+    }
+
+    private func present(_ controller: UIViewController, on presenter: UIViewController) async {
+        await withCheckedContinuation { done in
+            presenter.present(controller, animated: false) { done.resume() }
+        }
+    }
+
+    private func dismiss(_ presenter: UIViewController) async {
+        await withCheckedContinuation { done in
+            presenter.dismiss(animated: false) { done.resume() }
+        }
+    }
 
     private func makeViewModel(
         id: String = "behia",

@@ -307,8 +307,7 @@ struct RegistrationWaiverStep: View {
     }
 
     private var signedHelp: String {
-        let today = Date.now.formatted(.dateTime.month(.abbreviated).day().year())
-        let signed = String(localized: "Signed today, \(today).")
+        let signed = RegistrationForm.signedLabel(on: .now)
         guard event.kind == .trip else { return signed }
         return signed + " " +
             String(localized: "Under 18? We'll text your parent or guardian to sign too.")
