@@ -14,7 +14,8 @@ struct MyTripSheet: View {
         _viewModel = State(initialValue: MyTripViewModel(tripID: tripID, container: container))
         _schedule = State(initialValue: ScheduleViewModel(
             tripID: tripID,
-            repository: container.myTrips
+            repository: container.myTrips,
+            store: container.myTripsStore
         ))
     }
 

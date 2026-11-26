@@ -145,7 +145,11 @@ struct ScheduleItemView: View {
 
 #Preview {
     let container = DependencyContainer.preview()
-    let model = ScheduleViewModel(tripID: "behia-going", repository: container.myTrips)
+    let model = ScheduleViewModel(
+        tripID: "behia-going",
+        repository: container.myTrips,
+        store: container.myTripsStore
+    )
     return NavigationStack {
         ScheduleItemView(viewModel: model, itemID: "film")
             .task { await model.load() }

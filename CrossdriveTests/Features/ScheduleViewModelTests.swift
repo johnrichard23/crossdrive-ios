@@ -43,7 +43,7 @@ final class ScheduleViewModelTests: XCTestCase {
 
         // Assert
         let timeline = try XCTUnwrap(viewModel.timeline)
-        XCTAssertEqual(viewModel.selectedDay, timeline.days[1].id)
+        XCTAssertEqual(viewModel.dayToShow(keeping: nil), timeline.days[1].id)
     }
 
     func testLoad_WhenOfflineWithNothingSaved_ShouldBeOffline() async {
@@ -60,34 +60,56 @@ final class ScheduleViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.content, .offline)
     }
 
-    func testLoad_WhenReloaded_ShouldKeepThePickedDay() async throws {
-        // Arrange: the person picked day 3, then pulled to refresh.
+    func testDayToShow_WhenADayWasPicked_ShouldKeepIt() async throws {
+        // Arrange: on the second morning, this screen picked day 3.
         let now = try Date("2026-12-13T08:00:00+08:00", strategy: .iso8601)
         let viewModel = makeViewModel(tripID: "behia-going", now: now)
         await viewModel.load()
         let lastDay = try XCTUnwrap(viewModel.timeline?.days.last?.id)
-        viewModel.selectedDay = lastDay
 
         // Act
         await viewModel.load()
+        let shown = viewModel.dayToShow(keeping: lastDay)
 
         // Assert
-        XCTAssertEqual(viewModel.selectedDay, lastDay)
+        XCTAssertEqual(shown, lastDay)
     }
 
-    func testStartOnToday_WhenOpenedAgainAfterPickingADay_ShouldBeToday() async throws {
-        // Arrange: day 3 was picked on an earlier visit, on the second morning.
+    func testDayToShow_WhenThePickedDayIsGone_ShouldBeToday() async throws {
+        // Arrange: the picked day is no longer on the schedule.
         let now = try Date("2026-12-13T08:00:00+08:00", strategy: .iso8601)
         let viewModel = makeViewModel(tripID: "behia-going", now: now)
         await viewModel.load()
-        let timeline = try XCTUnwrap(viewModel.timeline)
-        viewModel.selectedDay = timeline.days[2].id
+        let today = try XCTUnwrap(viewModel.timeline?.days[1].id)
 
         // Act
-        viewModel.startOnToday()
+        let shown = viewModel.dayToShow(keeping: .distantPast)
 
         // Assert
-        XCTAssertEqual(viewModel.selectedDay, timeline.days[1].id)
+        XCTAssertEqual(shown, today)
+    }
+
+    func testLoad_WhenWaitlisted_ShouldSaySo() async {
+        // Arrange: Bulan is full and the person is on the waiting list.
+        let viewModel = makeViewModel(tripID: "bulan")
+
+        // Act
+        await viewModel.load()
+
+        // Assert
+        XCTAssertEqual(viewModel.content, .notConfirmed)
+        XCTAssertTrue(viewModel.isWaitlisted)
+    }
+
+    func testLoad_WhenLoaded_ShouldKnowWhenThePhoneSavedIt() async {
+        // Arrange
+        let viewModel = makeViewModel(tripID: "behia-going")
+
+        // Act
+        await viewModel.load()
+
+        // Assert
+        XCTAssertNotNil(viewModel.savedAt)
     }
 
     func testTeamLabel_ForEachTeam_ShouldNameYourOwnTeam() async throws {
@@ -129,6 +151,11 @@ final class ScheduleViewModelTests: XCTestCase {
         now: Date = Date(timeIntervalSince1970: 1_790_000_000)
     ) -> ScheduleViewModel {
         let container = DependencyContainer.preview(client: client)
-        return ScheduleViewModel(tripID: tripID, repository: container.myTrips, now: { now })
+        return ScheduleViewModel(
+            tripID: tripID,
+            repository: container.myTrips,
+            store: container.myTripsStore,
+            now: { now }
+        )
     }
 }

@@ -10,8 +10,9 @@ struct ScheduleView: View {
     @Environment(\.theme) private var theme
     @Environment(\.isOnline) private var isOnline
     @Environment(\.dismiss) private var dismiss
-    /// False until this push first shows; coming back from an activity keeps the day.
-    @State private var hasOpened = false
+    /// The day picked on this screen. Each push starts on today; coming back
+    /// from an activity keeps it, and another tab's schedule has its own.
+    @State private var pickedDay: ScheduleTimeline.Day.ID?
 
     init(viewModel: ScheduleViewModel) {
         _viewModel = State(initialValue: viewModel)
@@ -24,13 +25,7 @@ struct ScheduleView: View {
             .navigationTitle("Schedule")
             .navigationBarTitleDisplayMode(.inline)
             .dsToast($viewModel.toast)
-            .task {
-                if !hasOpened {
-                    hasOpened = true
-                    viewModel.startOnToday()
-                }
-                await viewModel.load()
-            }
+            .task { await viewModel.load() }
             .onChange(of: isOnline) { _, isOnline in
                 if isOnline {
                     Task { await viewModel.load() }
@@ -46,6 +41,12 @@ struct ScheduleView: View {
             if let timeline = viewModel.timeline {
                 ready(timeline)
             }
+        case .notConfirmed where viewModel.isWaitlisted:
+            ScheduleNotice(
+                icon: .system("lock"),
+                title: "Your schedule opens when you're confirmed",
+                message: "You're on the waiting list. We'll message you if a place opens up."
+            ) { dismiss() }
         case .notConfirmed:
             ScheduleNotice(
                 icon: .system("lock"),
@@ -74,17 +75,21 @@ struct ScheduleView: View {
     private func ready(_ timeline: ScheduleTimeline) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                ScheduleDayTabs(days: timeline.days, selection: $viewModel.selectedDay)
+                ScheduleDayTabs(days: timeline.days, selection: dayBinding)
                 if isOnline {
                     savedLine
                 } else {
                     offlineBanner
                 }
+                let items = viewModel.items(on: viewModel.dayToShow(keeping: pickedDay))
                 // The minute ticks over so Now and Next move on by themselves.
                 TimelineView(.everyMinute) { context in
                     LazyVStack(spacing: 10) {
-                        ForEach(viewModel.selectedItems) { item in
-                            NavigationLink(value: EventsRoute.activity(viewModel.tripID, item.id)) {
+                        ForEach(items) { item in
+                            NavigationLink(value: EventsRoute.activity(
+                                viewModel.tripID,
+                                item.id
+                            )) {
                                 ScheduleRow(
                                     item: item,
                                     phase: timeline.phase(of: item, now: context.date),
@@ -103,6 +108,13 @@ struct ScheduleView: View {
         .refreshable { await viewModel.load() }
     }
 
+    private var dayBinding: Binding<ScheduleTimeline.Day.ID?> {
+        Binding(
+            get: { viewModel.dayToShow(keeping: pickedDay) },
+            set: { pickedDay = $0 }
+        )
+    }
+
     private var savedLine: some View {
         Label {
             if let updatedAt = viewModel.updatedAt {
@@ -119,8 +131,8 @@ struct ScheduleView: View {
 
     private var offlineBanner: some View {
         Label {
-            if let updatedAt = viewModel.updatedAt {
-                let time = MyTrip.time.format(updatedAt)
+            if let savedAt = viewModel.savedAt {
+                let time = MyTrip.time.format(savedAt)
                 Text(
                     "You're offline. This is the schedule saved at \(time). Times may have changed."
                 )
@@ -256,7 +268,12 @@ private func schedulePreview(
     let container = DependencyContainer.preview(client: StubHTTPClient(handler))
     return NavigationStack {
         ScheduleView(
-            viewModel: ScheduleViewModel(tripID: id, repository: container.myTrips, now: { now })
+            viewModel: ScheduleViewModel(
+                tripID: id,
+                repository: container.myTrips,
+                store: container.myTripsStore,
+                now: { now }
+            )
         )
     }
     .theme(.crossdrive)

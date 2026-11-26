@@ -28,13 +28,17 @@ final class ScheduleViewModel {
     private(set) var timeline: ScheduleTimeline?
     /// When the coordinators last changed the schedule.
     private(set) var updatedAt: Date?
-    var selectedDay: ScheduleTimeline.Day.ID?
+    /// When this phone last saved the trip, for the offline banner.
+    private(set) var savedAt: Date?
+    /// Not confirmed because the trip is full, not because it is being checked.
+    private(set) var isWaitlisted = false
     /// A fetch is out, for the retry buttons.
     private(set) var isLoading = false
     var toast: DSToast?
 
     let tripID: Event.ID
     private let repository: Repository<MyTrip>
+    private let store: any Store<MyTrip>
     private let now: () -> Date
     private var myTeam: MyTrip.Team?
     private var loadToken = 0
@@ -42,10 +46,12 @@ final class ScheduleViewModel {
     init(
         tripID: Event.ID,
         repository: Repository<MyTrip>,
+        store: any Store<MyTrip>,
         now: @escaping () -> Date = Date.init
     ) {
         self.tripID = tripID
         self.repository = repository
+        self.store = store
         self.now = now
     }
 
@@ -62,6 +68,9 @@ final class ScheduleViewModel {
         do {
             let trip = try await repository.item(id: tripID)
             guard token == loadToken else { return }
+            let saved = try? await store.item(id: tripID)?.fetchedAt
+            guard token == loadToken else { return }
+            savedAt = saved
             show(trip)
         } catch {
             guard token == loadToken, !Self.isCancellation(error) else { return }
@@ -73,14 +82,18 @@ final class ScheduleViewModel {
         }
     }
 
-    /// A fresh open starts on today during the trip, else day 1, whatever
-    /// day was picked the last time.
-    func startOnToday() {
-        selectedDay = timeline?.dayToOpen(now: now())
+    /// The day to show: the one the screen picked while it is still on the
+    /// schedule, else today during the trip, else day 1.
+    func dayToShow(keeping picked: ScheduleTimeline.Day.ID?) -> ScheduleTimeline.Day.ID? {
+        guard let timeline else { return nil }
+        if timeline.days.contains(where: { $0.id == picked }) {
+            return picked
+        }
+        return timeline.dayToOpen(now: now())
     }
 
-    var selectedItems: [MyTrip.ScheduleItem] {
-        timeline?.days.first { $0.id == selectedDay }?.items ?? []
+    func items(on day: ScheduleTimeline.Day.ID?) -> [MyTrip.ScheduleItem] {
+        timeline?.days.first { $0.id == day }?.items ?? []
     }
 
     func item(_ id: MyTrip.ScheduleItem.ID) -> MyTrip.ScheduleItem? {
@@ -109,6 +122,7 @@ final class ScheduleViewModel {
 
     private func show(_ trip: MyTrip) {
         myTeam = trip.team
+        isWaitlisted = trip.status == .waitlisted
         guard trip.status == .going else {
             timeline = nil
             content = .notConfirmed
@@ -119,12 +133,7 @@ final class ScheduleViewModel {
             content = .notPublished
             return
         }
-        let timeline = ScheduleTimeline(schedule: schedule)
-        // A refresh keeps the day the person picked, if it is still there.
-        if !timeline.days.contains(where: { $0.id == selectedDay }) {
-            selectedDay = timeline.dayToOpen(now: now())
-        }
-        self.timeline = timeline
+        timeline = ScheduleTimeline(schedule: schedule)
         updatedAt = schedule.updatedAt
         content = .ready
     }

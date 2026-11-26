@@ -62,8 +62,16 @@ extension MyTrip {
 
     /// "AM" or "PM" for a time in Manila.
     static func dayPeriod(_ date: Date) -> String {
-        Calendar.manila.component(.hour, from: date) < 12 ? "AM" : "PM"
+        let calendar = periodCalendar
+        return calendar.component(.hour, from: date) < 12 ? calendar.amSymbol : calendar.pmSymbol
     }
+
+    /// Manila time with the same locale as the formatters above.
+    private static let periodCalendar: Calendar = {
+        var calendar = Calendar.manila
+        calendar.locale = Locale(identifier: "en_US")
+        return calendar
+    }()
 
     private static func style() -> Date.FormatStyle {
         Date.FormatStyle(

@@ -59,7 +59,8 @@ final class MainTabModels {
     func schedule(_ id: Event.ID) -> ScheduleViewModel {
         let model = scheduleModels[id] ?? ScheduleViewModel(
             tripID: id,
-            repository: container.myTrips
+            repository: container.myTrips,
+            store: container.myTripsStore
         )
         scheduleModels[id] = model
         return model
