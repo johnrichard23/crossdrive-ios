@@ -28,6 +28,31 @@ final class MainTabModels {
         reporter: container.services.crashReporter
     )
 
+    /// Shared by Events › My events and Profile, so both show the same trips.
+    private(set) lazy var myTrips = MyTripsViewModel(
+        repository: container.myTrips,
+        isSignedIn: { [weak self] in self?.isSignedIn() ?? false }
+    )
+
+    /// Set by the tab view from the coordinator's session.
+    var isSignedIn: @MainActor () -> Bool = { false }
+
+    /// One view model per trip, so a redraw of the stack does not build a new one.
+    /// shortcut: kept until the tabs are rebuilt (sign-out); free them on pop if
+    /// people open many trips.
+    private var myTripModels: [Event.ID: MyTripViewModel] = [:]
+
+    /// The My trip screen for one joined trip.
+    func myTripView(_ id: Event.ID) -> MyTripView {
+        let model = myTripModels[id] ?? MyTripViewModel(tripID: id, repository: container.myTrips)
+        myTripModels[id] = model
+        return MyTripView(
+            viewModel: model,
+            eventsAPI: container.eventsAPI,
+            imageLoader: container.imageLoader
+        )
+    }
+
     private(set) lazy var ministries = MinistriesViewModel(
         api: container.ministriesAPI,
         reporter: container.services.crashReporter

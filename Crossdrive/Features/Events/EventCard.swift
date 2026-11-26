@@ -48,23 +48,8 @@ struct EventCard: View {
         }
     }
 
-    @ViewBuilder private var kindTag: some View {
-        switch event.kind {
-        case .trip:
-            Text(event.kind.tagLabel)
-                .textRole(.footnote, emphasized: true)
-                .foregroundStyle(CDColor.onBrandSoft)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 3)
-                .background(CDColor.brandSoft, in: Capsule())
-        case .camp:
-            Text(event.kind.tagLabel)
-                .textRole(.footnote, emphasized: true)
-                .foregroundStyle(theme.labelPrimary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 2)
-                .overlay(Capsule().stroke(theme.labelPrimary, lineWidth: 1.5))
-        }
+    private var kindTag: some View {
+        EventKindTag(kind: event.kind)
     }
 
     private var slots: some View {
@@ -113,5 +98,31 @@ private struct SlotsBarStyle: ProgressViewStyle {
         }
         .frame(height: 6)
         .accessibilityHidden(true)
+    }
+}
+
+/// "Mission trip" on a soft purple, or "Camp" outlined: the kind tag on a card.
+struct EventKindTag: View {
+    let kind: EventKind
+
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        switch kind {
+        case .trip:
+            Text(kind.tagLabel)
+                .textRole(.footnote, emphasized: true)
+                .foregroundStyle(CDColor.onBrandSoft)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 3)
+                .background(CDColor.brandSoft, in: Capsule())
+        case .camp:
+            Text(kind.tagLabel)
+                .textRole(.footnote, emphasized: true)
+                .foregroundStyle(theme.labelPrimary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 2)
+                .overlay(Capsule().stroke(theme.labelPrimary, lineWidth: 1.5))
+        }
     }
 }

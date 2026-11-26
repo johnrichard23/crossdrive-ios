@@ -262,6 +262,12 @@ final class AppCoordinator {
         eventsPath = [.detail(id)]
     }
 
+    /// Opens a joined trip on the Events tab, with the list behind it.
+    func openMyTrip(_ id: Event.ID) {
+        selectedTab = .events
+        eventsPath = [.myTrip(id)]
+    }
+
     private func openPendingLinkIfPossible() {
         guard flow == .main, let pending = pendingLink else { return }
         pendingLink = nil

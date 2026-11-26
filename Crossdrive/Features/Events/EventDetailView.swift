@@ -29,6 +29,9 @@ struct EventDetailView: View {
     @State private var showsStatusBackdrop = false
     /// The registration sheet, while it is up.
     @State private var registration: RegistrationViewModel?
+    /// "Go to My trip" was tapped: open it once the sheet has gone, since a
+    /// push made while a sheet is closing can be dropped.
+    @State private var opensTripAfterSheet = false
 
     init(
         viewModel: EventDetailViewModel,
@@ -68,14 +71,20 @@ struct EventDetailView: View {
                     Task { await viewModel.connectionRestored(media: mediaLayout) }
                 }
             }
-            .sheet(item: $registration) { model in
+            .sheet(item: $registration, onDismiss: {
+                if opensTripAfterSheet {
+                    opensTripAfterSheet = false
+                    onOpenTrip()
+                }
+            }, content: { model in
                 RegistrationView(viewModel: model) { registered in
+                    opensTripAfterSheet = registered
                     registration = nil
                     if registered {
                         Task { await viewModel.load(media: mediaLayout, forceReload: true) }
                     }
                 }
-            }
+            })
     }
 
     /// Register: a guest signs in first. The trip is read again before the

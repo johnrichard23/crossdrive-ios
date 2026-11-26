@@ -11,18 +11,30 @@ struct MainTabView: View {
 
     init(coordinator: AppCoordinator) {
         self.coordinator = coordinator
-        _models = State(initialValue: MainTabModels(container: coordinator.container))
+        let models = MainTabModels(container: coordinator.container)
+        models.isSignedIn = { [weak coordinator] in coordinator?.session.user != nil }
+        _models = State(initialValue: models)
     }
 
     var body: some View {
         TabView(selection: tabSelection) {
-            HomeView(viewModel: models.home, path: $coordinator.homePath)
-                .tabItem { Label(MainTab.home.title, image: MainTab.home.iconName) }
-                .tag(MainTab.home)
+            HomeView(
+                viewModel: models.home,
+                makeMyTrip: models.myTripView,
+                path: $coordinator.homePath
+            )
+            .tabItem { Label(MainTab.home.title, image: MainTab.home.iconName) }
+            .tag(MainTab.home)
 
-            EventsView(viewModel: models.events, path: $coordinator.eventsPath)
-                .tabItem { Label(MainTab.events.title, image: MainTab.events.iconName) }
-                .tag(MainTab.events)
+            EventsView(
+                viewModel: models.events,
+                myTrips: models.myTrips,
+                isSignedIn: coordinator.session.user != nil,
+                makeMyTrip: models.myTripView,
+                path: $coordinator.eventsPath
+            )
+            .tabItem { Label(MainTab.events.title, image: MainTab.events.iconName) }
+            .tag(MainTab.events)
 
             MinistriesView(
                 viewModel: models.ministries,
@@ -45,8 +57,18 @@ struct MainTabView: View {
             )
 
             NavigationStack {
-                MoreView(coordinator: coordinator)
+                MoreView(coordinator: coordinator, myTrips: models.myTrips)
                     .navigationTitle(MainTab.profile.title)
+                    .navigationDestination(for: EventsRoute.self) { route in
+                        switch route {
+                        case let .myTrip(id): models.myTripView(id)
+                        case let .detail(id):
+                            EventDetailView(
+                                viewModel: models.events.detailViewModel(for: id),
+                                onOpenTrip: { coordinator.openMyTrip(id) }
+                            )
+                        }
+                    }
             }
             .tabItem { Label(MainTab.profile.title, image: MainTab.profile.iconName) }
             .tag(MainTab.profile)

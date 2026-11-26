@@ -4,13 +4,19 @@ import Foundation
 /// schedule out), waitlisted for Bulan, and waiting for a coordinator on the
 /// camp. `-stub-schedule-unpublished` holds Behia's schedule back.
 extension SampleStub {
+    private static let behiaPhoto =
+        "https://images.pexels.com/photos/23499309/pexels-photo-23499309.jpeg?auto=compress&w=800"
+    private static let campPhoto =
+        "https://images.pexels.com/photos/33714873/pexels-photo-33714873.jpeg?auto=compress&w=800"
+
     static var myTripsJSON: String {
         let published = !CommandLine.arguments.contains("-stub-schedule-unpublished")
         return #"""
         [
           {"registration": {"id": "reg-behia", "status": "going", "waiverSigned": true, "paid": false,
                             "permit": {"name": "Maria Bañares", "signed": false}},
-           "event": {"id": "behia-going", "kind": "trip", "name": "Behia Mission Trip",
+           "event": {"id": "behia-going", "kind": "trip", "name": "Behia Mission Trip", "place": "Bagatao Island",
+                     "heroImageURL": "\#(behiaPhoto)",
                      "startsAt": "2026-12-11T22:00:00Z", "endsAt": "2026-12-14T10:00:00Z",
                      "fee": {"amountMinor": 150000, "currency": "PHP"}, "payBy": "2026-12-11T16:00:00Z"},
            "meetup": {"point": "Magallanes port", "startsAt": "2026-12-11T21:30:00Z",
@@ -26,12 +32,14 @@ extension SampleStub {
            "packed": ["water", "hat"],
            "remindNightBefore": true},
           {"registration": {"id": "reg-bulan", "status": "waitlisted", "waiverSigned": true, "paid": false},
-           "event": {"id": "bulan", "kind": "trip", "name": "Bulan Mission Trip",
+           "event": {"id": "bulan", "kind": "trip", "name": "Bulan Mission Trip", "place": "Bulan, Sorsogon",
                      "startsAt": "2027-01-15T22:00:00Z", "endsAt": "2027-01-18T10:00:00Z",
                      "fee": {"amountMinor": 150000, "currency": "PHP"}},
            "bring": [{"id": "water", "title": "Water bottle"}]},
           {"registration": {"id": "reg-camp", "status": "pending", "waiverSigned": true, "paid": false},
            "event": {"id": "camp-feb", "kind": "camp", "name": "Young Missionaries Camp",
+                     "place": "Venue to be announced",
+                     "heroImageURL": "\#(campPhoto)",
                      "startsAt": "2027-02-19T22:00:00Z", "endsAt": "2027-02-22T04:00:00Z"},
            "bring": [{"id": "bible", "title": "Bible and notebook"}]}
         ]

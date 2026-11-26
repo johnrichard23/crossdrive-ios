@@ -6,6 +6,7 @@ import UIKit
 /// section with its own settings.
 struct MoreView: View {
     let coordinator: AppCoordinator
+    let myTrips: MyTripsViewModel
 
     @State private var permission: NotificationPermissionViewModel
     @State private var showsPrePrompt = false
@@ -15,8 +16,9 @@ struct MoreView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
 
-    init(coordinator: AppCoordinator) {
+    init(coordinator: AppCoordinator, myTrips: MyTripsViewModel) {
         self.coordinator = coordinator
+        self.myTrips = myTrips
         _permission = State(
             initialValue: NotificationPermissionViewModel(
                 push: coordinator.container.services.push
@@ -35,6 +37,15 @@ struct MoreView: View {
                     accountRows
                 } header: {
                     DSSectionHeader("Account")
+                }
+                .dsListRows()
+            }
+
+            if coordinator.session.user != nil {
+                Section {
+                    myEventsRows
+                } header: {
+                    DSSectionHeader("My events")
                 }
                 .dsListRows()
             }
@@ -67,6 +78,7 @@ struct MoreView: View {
         .navigationTitle(MainTab.profile.title)
         .navigationBarTitleDisplayMode(.inline)
         .task { await permission.refresh() }
+        .task(id: coordinator.session.user?.id) { await myTrips.load(forceReload: true) }
         .onChange(of: scenePhase) { _, phase in
             // The user may have changed it in Settings.
             if phase == .active {
@@ -100,6 +112,31 @@ struct MoreView: View {
         case .signedOut:
             DSRow("You're using the app as a guest", systemImage: "person.circle")
             Button("Sign in") { coordinator.requireAccount {} }
+        }
+    }
+
+    /// The trips the person joined; each opens My trip.
+    @ViewBuilder private var myEventsRows: some View {
+        if let trips = myTrips.state.value, !trips.isEmpty {
+            ForEach(trips) { trip in
+                NavigationLink(value: EventsRoute.myTrip(trip.id)) {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(trip.event.name).textRole(.body)
+                            Text(trip.placeAndDates)
+                                .textRole(.subheadline)
+                                .foregroundStyle(theme.labelSecondary)
+                        }
+                        Spacer(minLength: 8)
+                        MyTripStatusTag(status: trip.status, compact: true)
+                    }
+                    .padding(.vertical, 6)
+                }
+            }
+        } else if case .loaded = myTrips.state {
+            Button("See open events") { coordinator.selectedTab = .events }
+        } else {
+            DSRow("Your trips show here", systemImage: "calendar")
         }
     }
 
@@ -144,7 +181,11 @@ struct MoreView: View {
 
 #Preview {
     NavigationStack {
-        MoreView(coordinator: AppCoordinator(container: .preview()))
+        let container = DependencyContainer.preview()
+        MoreView(
+            coordinator: AppCoordinator(container: container),
+            myTrips: MyTripsViewModel(repository: container.myTrips, isSignedIn: { true })
+        )
     }
     .theme(.system)
 }

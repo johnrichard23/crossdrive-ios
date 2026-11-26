@@ -56,6 +56,8 @@ enum CDColor {
     static let onHarvestSoft = DesignSystem.color(light: 0x8A5D0B, dark: 0xF2C877)
     static let brandSoft = DesignSystem.color(light: 0xECE4FA, dark: 0x2B2442)
     static let onBrandSoft = DesignSystem.color(light: 0x573693, dark: 0xD4C4F5)
+    /// The "You're going" pill on My trip: a pale green behind `theme.success`.
+    static let successSoft = DesignSystem.color(light: 0xE2F3EA, dark: 0x16352A)
     /// The light lavender-gray fill behind small fact chips.
     static let chipFill = DesignSystem.color(light: 0xDFE1F0, dark: 0x2B2F44)
     /// `brandSoft` while pressed.

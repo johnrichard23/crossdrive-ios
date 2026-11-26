@@ -19,6 +19,8 @@ struct MyTrip: Identifiable, Codable, Hashable, Sendable {
     struct TripSummary: Codable, Hashable, Sendable {
         var kind: EventKind
         var name: String
+        var place: String?
+        var heroImageURL: URL?
         var startsAt: Date
         var endsAt: Date
         var fee: Money?
