@@ -280,12 +280,15 @@ struct EventDetailView: View {
     @ViewBuilder
     private func sections(_ detail: EventDetail) -> some View {
         if detail.isGoing {
-            EventGoingCard(
-                meetup: detail.meetup,
-                day: detail.event.startDayLabel,
-                waiverSigned: detail.registration?.waiverSigned ?? false,
-                onOpenTrip: onOpenTrip
-            )
+            TimelineView(.everyMinute) { context in
+                EventGoingCard(
+                    meetup: detail.meetup,
+                    day: detail.event.startDayLabel,
+                    countdown: detail.event.countdown(now: context.date),
+                    waiverSigned: detail.registration?.waiverSigned ?? false,
+                    onOpenTrip: onOpenTrip
+                )
+            }
             bring(detail)
             map(detail)
             covers(detail)

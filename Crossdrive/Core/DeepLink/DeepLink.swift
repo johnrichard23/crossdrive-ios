@@ -2,4 +2,6 @@
 /// a rule in `DeepLinkRouter`, and a branch in `AppCoordinator` for each place.
 enum DeepLink: Hashable, Sendable {
     case item(Item.ID)
+    /// A joined trip's My trip screen (the night-before reminder links here).
+    case trip(Event.ID)
 }

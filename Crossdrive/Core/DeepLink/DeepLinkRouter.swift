@@ -4,8 +4,9 @@ import Foundation
 /// recognise is ignored, never half-handled.
 ///
 /// Understood:
-/// - `<scheme>://items/<id>` (the app's own scheme, from `Info.plist`)
-/// - `https://<host>/items/<id>` for each host in `universalLinkHosts`
+/// - `<scheme>://items/<id>` and `<scheme>://trips/<id>` (the app's own
+///   scheme, from `Info.plist`)
+/// - `https://<host>/items/<id>` and `.../trips/<id>` for each host in `universalLinkHosts`
 ///   (empty until a project sets up associated domains)
 ///
 /// Everything after the path (a query, a fragment) is ignored, and an id is
@@ -45,10 +46,12 @@ struct DeepLinkRouter: Sendable {
             return nil
         }
 
-        guard segments.count == 2, segments[0] == "items", Self.isValid(id: segments[1]) else {
-            return nil
+        guard segments.count == 2, Self.isValid(id: segments[1]) else { return nil }
+        switch segments[0] {
+        case "items": return .item(segments[1])
+        case "trips": return .trip(segments[1])
+        default: return nil
         }
-        return .item(segments[1])
     }
 
     /// For text from a push notification's payload.

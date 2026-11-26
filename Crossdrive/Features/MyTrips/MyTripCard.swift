@@ -45,8 +45,8 @@ struct MyTripCard: View {
     }
 }
 
-/// Where the person stands. On a card: "You're going" filled purple, or the
-/// quieter waiting pills. `compact` is the short form for a list row.
+/// Where the person stands: "You're going" in green, or the quieter waiting
+/// pills. `compact` is the short form for a list row.
 struct MyTripStatusTag: View {
     let status: MyTrip.Status
     var compact = false
@@ -55,17 +55,19 @@ struct MyTripStatusTag: View {
 
     var body: some View {
         switch (status, compact) {
-        case (.going, false):
-            pill(String(localized: "You're going"), theme.onAccent, theme.accent)
-        case (.going, true):
-            Label { Text("Going") } icon: { DSIcon(.check, role: .footnote) }
-                .labelStyle(.titleAndIcon)
-                .textRole(.footnote, emphasized: true)
-                .foregroundStyle(theme.success)
-                .padding(.leading, 7)
-                .padding(.trailing, 9)
-                .padding(.vertical, 3)
-                .background(CDColor.successSoft, in: Capsule())
+        case (.going, _):
+            Label {
+                Text(compact ? String(localized: "Going") : String(localized: "You're going"))
+            } icon: {
+                DSIcon(.check, role: .footnote)
+            }
+            .labelStyle(.titleAndIcon)
+            .textRole(.footnote, emphasized: true)
+            .foregroundStyle(theme.success)
+            .padding(.leading, 7)
+            .padding(.trailing, 9)
+            .padding(.vertical, 3)
+            .background(CDColor.successSoft, in: Capsule())
         case (.pending, _):
             pill(
                 compact ? String(localized: "Pending") :

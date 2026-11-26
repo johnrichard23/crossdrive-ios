@@ -33,6 +33,7 @@ struct RootView: View {
         .sheet(item: $coordinator.presentedLink) { presented in
             switch presented.link {
             case let .item(id): ItemSheetView(itemID: id, container: coordinator.container)
+            case let .trip(id): MyTripSheet(tripID: id, container: coordinator.container)
             }
         }
         .onOpenURL { coordinator.handle(url: $0) }

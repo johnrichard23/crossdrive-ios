@@ -1,9 +1,11 @@
 import DesignSystem
 import SwiftUI
 
-/// One event in the Events list: photo, tags, title, where, cost, slots.
+/// One event in the Events list: photo, tags (with where the person stands,
+/// once they joined), title, where, cost, slots.
 struct EventCard: View {
     let event: Event
+    var status: MyTrip.Status?
 
     @Environment(\.theme) private var theme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -44,6 +46,9 @@ struct EventCard: View {
     private var tags: some View {
         row(spacing: 8) {
             kindTag
+            if let status {
+                MyTripStatusTag(status: status, compact: true)
+            }
             CDDateStamp(text: event.dateRangeLabel)
         }
     }

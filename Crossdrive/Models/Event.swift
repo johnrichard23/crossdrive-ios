@@ -80,6 +80,16 @@ struct Event: Identifiable, Hashable, Sendable {
         ).day ?? 0
     }
 
+    /// "Starts in 16 days", counted in Manila days; `nil` once the trip has started.
+    func countdown(now: Date) -> String? {
+        switch daysUntilStart(from: now) {
+        case ..<0: nil
+        case 0: String(localized: "Starts today")
+        case 1: String(localized: "Starts tomorrow")
+        case let days: String(localized: "Starts in \(days) days")
+        }
+    }
+
     /// How many slots remain, or `nil` when there is no limit.
     var slotsLeftCount: Int? {
         capacity.map { max($0 - registeredCount, 0) }

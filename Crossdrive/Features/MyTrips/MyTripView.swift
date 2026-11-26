@@ -31,7 +31,9 @@ struct MyTripView: View {
             .navigationBarTitleDisplayMode(.inline)
             .dsToast($viewModel.toast)
             .task { await viewModel.load() }
+            .onAppear { viewModel.isOnline = isOnline }
             .onChange(of: isOnline) { _, isOnline in
+                viewModel.isOnline = isOnline
                 if isOnline {
                     Task { await viewModel.connectionRestored() }
                 }
@@ -89,12 +91,18 @@ struct MyTripView: View {
                 if !trip.toDos.isEmpty {
                     toDoBanner(trip.toDos)
                 }
-                if let meetup = trip.meetup {
-                    MyTripMeetCard(meetup: meetup, lead: trip.lead)
-                }
-                savedLine
-                if let item = viewModel.upNext {
-                    upNext(item)
+                tabPicker
+                switch viewModel.tab {
+                case .trip:
+                    tripTab(trip)
+                case .packing:
+                    MyTripPackingTab(
+                        trip: trip,
+                        isOnline: isOnline,
+                        reminderNeedsSettings: viewModel.reminderNeedsSettings,
+                        onToggle: { item in Task { await viewModel.toggle(item) } },
+                        onReminder: { isOn in Task { await viewModel.setReminder(isOn) } }
+                    )
                 }
             }
             .screenMargins()
@@ -111,6 +119,45 @@ struct MyTripView: View {
 
     // MARK: - Pieces
 
+    @ViewBuilder private func tripTab(_ trip: MyTrip) -> some View {
+        if let meetup = trip.meetup {
+            MyTripMeetCard(meetup: meetup, lead: trip.lead)
+        }
+        savedLine
+        if let item = viewModel.upNext {
+            upNext(item)
+        }
+    }
+
+    /// Trip | Packing; a menu at the largest text sizes, where two segments don't fit.
+    @ViewBuilder private var tabPicker: some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            Menu {
+                Picker("My trip sections", selection: $viewModel.tab) {
+                    ForEach(MyTripViewModel.Tab.allCases, id: \.self) { tab in
+                        Text(tab.title).tag(tab)
+                    }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Text(viewModel.tab.title)
+                    DSIcon(.system("chevron.down"), role: .subheadline)
+                }
+                .textRole(.body, emphasized: true)
+                .foregroundStyle(theme.labelPrimary)
+                .padding(.horizontal, 16)
+                .frame(minHeight: 44)
+                .background(theme.surfacePressed, in: Capsule())
+            }
+        } else {
+            DSSegmentedControl(
+                selection: $viewModel.tab,
+                options: MyTripViewModel.Tab.allCases,
+                title: \.title
+            )
+        }
+    }
+
     private func header(_ trip: MyTrip) -> some View {
         CDFlowLayout(spacing: 10) {
             statusPill(trip.status)
@@ -122,19 +169,8 @@ struct MyTripView: View {
         }
     }
 
-    @ViewBuilder private func statusPill(_ status: MyTrip.Status) -> some View {
-        if status == .going {
-            Label { Text("You're going") } icon: { DSIcon(.check, role: .footnote) }
-                .labelStyle(.titleAndIcon)
-                .textRole(.footnote, emphasized: true)
-                .foregroundStyle(theme.success)
-                .padding(.leading, 8)
-                .padding(.trailing, 10)
-                .padding(.vertical, 4)
-                .background(CDColor.successSoft, in: Capsule())
-        } else {
-            MyTripStatusTag(status: status)
-        }
+    private func statusPill(_ status: MyTrip.Status) -> some View {
+        MyTripStatusTag(status: status)
     }
 
     private func toDoBanner(_ toDos: [MyTrip.ToDo]) -> some View {
@@ -244,7 +280,7 @@ private func myTripPreview(
     let container = DependencyContainer.preview(client: StubHTTPClient(handler))
     return NavigationStack {
         MyTripView(
-            viewModel: MyTripViewModel(tripID: id, repository: container.myTrips),
+            viewModel: MyTripViewModel(tripID: id, container: container),
             eventsAPI: container.eventsAPI,
             imageLoader: container.imageLoader
         )
