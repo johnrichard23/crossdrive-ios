@@ -124,9 +124,7 @@ struct MyTripView: View {
             MyTripMeetCard(meetup: meetup, lead: trip.lead)
         }
         savedLine
-        if let item = viewModel.upNext {
-            upNext(item)
-        }
+        upNext(viewModel.upNext, tripID: trip.id)
     }
 
     /// Trip | Packing; a menu at the largest text sizes, where two segments don't fit.
@@ -214,28 +212,62 @@ struct MyTripView: View {
         .foregroundStyle(theme.labelSecondary)
     }
 
-    private func upNext(_ item: MyTrip.ScheduleItem) -> some View {
+    /// The heading and the schedule link show for every joined trip; the next
+    /// activity only once the person is confirmed and the schedule is out.
+    private func upNext(_ item: MyTrip.ScheduleItem?, tripID: Event.ID) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Up next")
-                .textRole(.title3, emphasized: true)
-                .accessibilityAddTraits(.isHeader)
-            HStack(alignment: .top, spacing: 12) {
-                Circle()
-                    .strokeBorder(theme.accent, lineWidth: 2)
-                    .frame(width: ringSize, height: ringSize)
-                    .padding(.top, 3)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(MyTrip.time.format(item.startsAt))
-                        .textRole(.body, emphasized: true)
-                    Text(item.title)
-                        .textRole(.body)
-                        .foregroundStyle(theme.labelSecondary)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline) {
+                    upNextHeading
+                    Spacer(minLength: 8)
+                    // The 44-pt tap area overhangs the heading's line instead of pushing it down.
+                    scheduleLink(tripID).padding(.vertical, -10)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    upNextHeading
+                    scheduleLink(tripID)
                 }
             }
-            .accessibilityElement(children: .combine)
+            if let item {
+                upNextItem(item)
+            }
         }
         .padding(.top, 4)
+    }
+
+    private var upNextHeading: some View {
+        Text("Up next")
+            .textRole(.title3, emphasized: true)
+            .accessibilityAddTraits(.isHeader)
+    }
+
+    private func scheduleLink(_ tripID: Event.ID) -> some View {
+        NavigationLink(value: EventsRoute.schedule(tripID)) {
+            Text("See the full schedule")
+                .textRole(.subheadline, emphasized: true)
+                .foregroundStyle(theme.accent)
+                .frame(minHeight: DesignSystem.minTapTarget)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func upNextItem(_ item: MyTrip.ScheduleItem) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Circle()
+                .strokeBorder(theme.accent, lineWidth: 2)
+                .frame(width: ringSize, height: ringSize)
+                .padding(.top, 3)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(MyTrip.time.format(item.startsAt))
+                    .textRole(.body, emphasized: true)
+                Text(item.title)
+                    .textRole(.body)
+                    .foregroundStyle(theme.labelSecondary)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private var offlineNote: some View {

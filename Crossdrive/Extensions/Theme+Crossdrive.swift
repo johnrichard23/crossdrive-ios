@@ -91,3 +91,16 @@ extension DesignSystem.ButtonKind {
         )
     }
 }
+
+extension DesignSystem.ButtonKind {
+    /// An outlined action in ink with no fill, for actions inside a section.
+    static let outline = DesignSystem.ButtonKind { theme in
+        DesignSystem.ButtonColors(
+            fill: .clear,
+            pressedFill: theme.surfacePressed,
+            foreground: theme.labelPrimary,
+            border: theme.labelPrimary,
+            disabledFill: .clear
+        )
+    }
+}

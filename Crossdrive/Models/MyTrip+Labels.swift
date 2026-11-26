@@ -53,6 +53,17 @@ extension MyTrip {
     static let longDay = style().weekday(.wide).month(.abbreviated).day()
     /// "Dec 12".
     static let monthDay = style().month(.abbreviated).day()
+    /// "Sat".
+    static let weekday = style().weekday(.abbreviated)
+    /// "12".
+    static let dayOfMonth = style().day()
+    /// "10:30", for a time shown with its AM or PM apart.
+    static let clock = style().hour(.defaultDigits(amPM: .omitted)).minute()
+
+    /// "AM" or "PM" for a time in Manila.
+    static func dayPeriod(_ date: Date) -> String {
+        Calendar.manila.component(.hour, from: date) < 12 ? "AM" : "PM"
+    }
 
     private static func style() -> Date.FormatStyle {
         Date.FormatStyle(

@@ -53,6 +53,23 @@ final class MainTabModels {
         )
     }
 
+    /// One schedule per trip, kept for the same reason as `myTripModels`.
+    private var scheduleModels: [Event.ID: ScheduleViewModel] = [:]
+
+    func schedule(_ id: Event.ID) -> ScheduleViewModel {
+        let model = scheduleModels[id] ?? ScheduleViewModel(
+            tripID: id,
+            repository: container.myTrips
+        )
+        scheduleModels[id] = model
+        return model
+    }
+
+    /// My trip or a schedule screen under it, for any tab's stack.
+    func tripScreen(_ route: EventsRoute) -> TripScreen {
+        TripScreen(route: route, models: self)
+    }
+
     private(set) lazy var ministries = MinistriesViewModel(
         api: container.ministriesAPI,
         reporter: container.services.crashReporter

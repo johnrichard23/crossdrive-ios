@@ -8,7 +8,7 @@ struct EventsView: View {
     @State private var myTrips: MyTripsViewModel
     @Binding private var path: [EventsRoute]
     private let isSignedIn: Bool
-    private let makeMyTrip: (Event.ID) -> MyTripView
+    private let makeTripScreen: (EventsRoute) -> TripScreen
 
     @Environment(\.theme) private var theme
     @Environment(\.isOnline) private var isOnline
@@ -18,13 +18,13 @@ struct EventsView: View {
         viewModel: EventsViewModel,
         myTrips: MyTripsViewModel,
         isSignedIn: Bool,
-        makeMyTrip: @escaping (Event.ID) -> MyTripView,
+        makeTripScreen: @escaping (EventsRoute) -> TripScreen,
         path: Binding<[EventsRoute]>
     ) {
         _viewModel = State(initialValue: viewModel)
         _myTrips = State(initialValue: myTrips)
         self.isSignedIn = isSignedIn
-        self.makeMyTrip = makeMyTrip
+        self.makeTripScreen = makeTripScreen
         _path = path
     }
 
@@ -57,8 +57,8 @@ struct EventsView: View {
                         viewModel: viewModel.detailViewModel(for: id),
                         onOpenTrip: { path.append(.myTrip(id)) }
                     )
-                case let .myTrip(id):
-                    makeMyTrip(id)
+                case .myTrip, .schedule, .activity:
+                    makeTripScreen(route)
                 }
             }
         }
@@ -213,14 +213,7 @@ private func previewScreen(_ viewModel: EventsViewModel) -> some View {
             isSignedIn: { true }
         ),
         isSignedIn: true,
-        makeMyTrip: { id in
-            let container = DependencyContainer.preview()
-            return MyTripView(
-                viewModel: MyTripViewModel(tripID: id, container: container),
-                eventsAPI: container.eventsAPI,
-                imageLoader: container.imageLoader
-            )
-        },
+        makeTripScreen: MainTabModels(container: .preview()).tripScreen,
         path: .constant([])
     )
     .theme(.crossdrive)

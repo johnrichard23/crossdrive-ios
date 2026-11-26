@@ -20,7 +20,7 @@ struct MainTabView: View {
         TabView(selection: tabSelection) {
             HomeView(
                 viewModel: models.home,
-                makeMyTrip: models.myTripView,
+                makeTripScreen: models.tripScreen,
                 path: $coordinator.homePath
             )
             .tabItem { Label(MainTab.home.title, image: MainTab.home.iconName) }
@@ -30,7 +30,7 @@ struct MainTabView: View {
                 viewModel: models.events,
                 myTrips: models.myTrips,
                 isSignedIn: coordinator.session.user != nil,
-                makeMyTrip: models.myTripView,
+                makeTripScreen: models.tripScreen,
                 path: $coordinator.eventsPath
             )
             .tabItem { Label(MainTab.events.title, image: MainTab.events.iconName) }
@@ -61,7 +61,7 @@ struct MainTabView: View {
                     .navigationTitle(MainTab.profile.title)
                     .navigationDestination(for: EventsRoute.self) { route in
                         switch route {
-                        case let .myTrip(id): models.myTripView(id)
+                        case .myTrip, .schedule, .activity: models.tripScreen(route)
                         case let .detail(id):
                             EventDetailView(
                                 viewModel: models.events.detailViewModel(for: id),

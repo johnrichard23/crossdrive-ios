@@ -49,29 +49,14 @@ struct MyTripMeetCard: View {
             Button("Directions") { openURL(url) }
                 .buttonStyle(PineOutlineButtonStyle())
         }
-        if let lead, let url = callURL(lead.phone) {
+        if let lead, let url = TripLinks.call(lead.phone) {
             Button("Call \(lead.name)") { openURL(url) }
                 .buttonStyle(PineOutlineButtonStyle())
         }
     }
 
-    /// Apple Maps over HTTPS; no location permission is needed to open it.
     private var mapsURL: URL? {
-        guard let latitude = meetup.latitude, let longitude = meetup.longitude else { return nil }
-        var parts = URLComponents(string: "https://maps.apple.com/")
-        parts?.queryItems = [
-            URLQueryItem(name: "ll", value: "\(latitude),\(longitude)"),
-            URLQueryItem(name: "q", value: meetup.point),
-        ]
-        return parts?.url
-    }
-
-    /// Only digits and a leading plus reach the dialler.
-    private func callURL(_ phone: String?) -> URL? {
-        guard let phone else { return nil }
-        let digits = phone.filter { $0.isNumber || $0 == "+" }
-        guard !digits.isEmpty else { return nil }
-        return URL(string: "tel:\(digits)")
+        TripLinks.maps(latitude: meetup.latitude, longitude: meetup.longitude, name: meetup.point)
     }
 }
 
