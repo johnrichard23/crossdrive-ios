@@ -10,9 +10,6 @@ struct RegistrationDoneStep: View {
     @Environment(\.theme) private var theme
     @Environment(\.openURL) private var openURL
 
-    /// CrossDrive's Facebook page on Messenger.
-    static let messengerURL = URL(string: "https://m.me/61555548324105")
-
     private var event: Event {
         viewModel.detail.event
     }
@@ -109,7 +106,7 @@ struct RegistrationDoneStep: View {
                 ))
                 .textRole(.subheadline)
                 .foregroundStyle(theme.labelSecondary)
-            if let url = Self.messengerURL {
+            if let url = TripLinks.messenger {
                 Button(hasName ? "Open Messenger" : "Message us on Messenger") { openURL(url) }
                     .buttonStyle(.ds(.secondary, size: .regular))
                     .padding(.top, 4)

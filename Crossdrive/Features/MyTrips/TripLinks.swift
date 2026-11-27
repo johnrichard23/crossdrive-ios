@@ -2,6 +2,9 @@ import Foundation
 
 /// Links that leave the app from a trip: Apple Maps and the dialler.
 enum TripLinks {
+    /// CrossDrive's Facebook page on Messenger.
+    static let messenger = URL(string: "https://m.me/61555548324105")
+
     /// Apple Maps over HTTPS; no location permission is needed to open it.
     static func maps(latitude: Double?, longitude: Double?, name: String) -> URL? {
         guard let latitude, let longitude else { return nil }
