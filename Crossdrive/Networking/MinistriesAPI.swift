@@ -26,6 +26,13 @@ struct MinistriesAPI: Sendable {
         return detail
     }
 
+    /// `POST /ministries/{id}/prayers/{prayerID}/prayed` (public): counts one
+    /// more person who prayed for this prayer point.
+    func markPrayed(_ prayer: HomePrayer.ID, ministry: Ministry.ID) async throws {
+        let path = "ministries/\(Self.pathSegment(ministry))/prayers/\(Self.pathSegment(prayer))/prayed"
+        _ = try await client.send(.post(path, body: [String: String]()))
+    }
+
     /// A server-supplied id must not be able to add path segments.
     private static func pathSegment(_ id: String) -> String {
         let allowed = CharacterSet.urlPathAllowed.subtracting(CharacterSet(charactersIn: "/"))

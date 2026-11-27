@@ -72,14 +72,10 @@ struct MinistriesView: View {
         }
     }
 
-    /// The give banner is real and stays; only the sections wait for their data.
     private var skeleton: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                giveBanner.screenMargins()
-                MinistriesSkeleton()
-            }
-            .padding(.bottom, theme.spacing.groupGap)
+            MinistriesSkeleton()
+                .padding(.bottom, theme.spacing.groupGap)
         }
         .scrollDisabled(true)
     }
@@ -90,7 +86,6 @@ struct MinistriesView: View {
                 if viewModel.kinds.count > 1 {
                     chips
                 }
-                giveBanner.screenMargins()
                 ForEach(viewModel.sections) { section in
                     MinistrySectionView(section: section)
                 }
@@ -129,29 +124,6 @@ struct MinistriesView: View {
         .buttonStyle(.plain)
         .accessibilityAddTraits(isOn ? .isSelected : [])
     }
-
-    /// The general Give page, for gifts that go where the need is greatest.
-    private var giveBanner: some View {
-        Button {} label: {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("Give where it's needed most")
-                        .textRole(.headline, emphasized: true)
-                        .foregroundStyle(CDColor.onPine)
-                    Text("The team uses it where the need is greatest.")
-                        .textRole(.subheadline)
-                        .foregroundStyle(CDColor.onPineMuted)
-                }
-                Spacer(minLength: 0)
-            }
-            .multilineTextAlignment(.leading)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(CDColor.pineGround, in: DesignSystem.Radius.shape(16))
-        }
-        .buttonStyle(.plain)
-    }
 }
 
 // MARK: - Previews: one per state
@@ -171,7 +143,8 @@ private func previewScreen(_ viewModel: MinistriesViewModel) -> some View {
         makeDetail: { id in
             MinistryDetailViewModel(
                 api: MinistriesAPI(client: StubHTTPClient(SampleStub.handle)),
-                ministryID: id
+                ministryID: id,
+                imageLoader: URLSessionImageLoader()
             )
         }
     )

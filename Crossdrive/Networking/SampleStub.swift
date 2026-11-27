@@ -258,7 +258,7 @@ enum SampleStub {
         case (.get, _) where endpoint.path.hasPrefix("events/"):
             .json(eventDetailJSON(for: String(endpoint.path.dropFirst("events/".count))))
         case (.get, _) where endpoint.path.hasPrefix("ministries/"):
-            .json(ministryDetailJSON)
+            ministryDetailReply(id: String(endpoint.path.dropFirst("ministries/".count)))
         case (.get, "ministries"):
             .json(ministriesJSON)
         case (.get, "events"):

@@ -1,30 +1,15 @@
 import DesignSystem
 import SwiftUI
 
-/// A section title on the ministry screen, with an optional "See all".
+/// A section title on the ministry screen.
 struct MinistrySectionHeader: View {
     let title: LocalizedStringKey
-    var showsSeeAll = false
-
-    @Environment(\.theme) private var theme
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(title)
-                .textRole(.title3, emphasized: true)
-                .accessibilityAddTraits(.isHeader)
-            Spacer(minLength: 8)
-            if showsSeeAll {
-                Button {} label: {
-                    Text("See all")
-                        .textRole(.subheadline, emphasized: true)
-                        .foregroundStyle(theme.accent)
-                        .minTapTarget()
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Text("See all \(Text(title))"))
-            }
-        }
+        Text(title)
+            .textRole(.title3, emphasized: true)
+            .accessibilityAddTraits(.isHeader)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -36,7 +21,7 @@ struct MinistryPhotosSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            MinistrySectionHeader(title: "Photos", showsSeeAll: true)
+            MinistrySectionHeader(title: "Photos")
             // The first photo lines up with the margins; the rest run on past them.
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 10) {
@@ -69,7 +54,7 @@ struct MinistryUpdatesSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            MinistrySectionHeader(title: "Latest updates", showsSeeAll: true)
+            MinistrySectionHeader(title: "Latest updates")
             ForEach(updates) { update in
                 row(update)
             }
@@ -77,34 +62,32 @@ struct MinistryUpdatesSection: View {
         .padding(.top, 10)
     }
 
+    /// Plain for now: a full update opens once Stories exist.
     private func row(_ update: MinistryUpdate) -> some View {
-        Button {} label: {
-            HStack(spacing: 12) {
-                if update.imageURL != nil {
-                    DSRemoteImage(url: update.imageURL) { DSImagePlaceholder() }
-                        .frame(width: 56, height: 56)
-                        .clipShape(DesignSystem.Radius.shape(10))
-                        .accessibilityHidden(true)
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    if let date = update.dateLabel {
-                        Text(date)
-                            .textRole(.footnote)
-                            .foregroundStyle(theme.labelSecondary)
-                    }
-                    Text(update.text)
-                        .textRole(.subheadline)
-                        .multilineTextAlignment(.leading)
-                }
-                Spacer(minLength: 0)
+        HStack(spacing: 12) {
+            if update.imageURL != nil {
+                DSRemoteImage(url: update.imageURL) { DSImagePlaceholder() }
+                    .frame(width: 56, height: 56)
+                    .clipShape(DesignSystem.Radius.shape(10))
+                    .accessibilityHidden(true)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(theme.surface, in: DesignSystem.Radius.shape(16))
-            .overlay(DesignSystem.Radius.shape(16).stroke(theme.separator, lineWidth: 1))
-            .contentShape(DesignSystem.Radius.shape(16))
+            VStack(alignment: .leading, spacing: 2) {
+                if let date = update.dateLabel {
+                    Text(date)
+                        .textRole(.footnote)
+                        .foregroundStyle(theme.labelSecondary)
+                }
+                Text(update.text)
+                    .textRole(.subheadline)
+                    .multilineTextAlignment(.leading)
+            }
+            Spacer(minLength: 0)
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.surface, in: DesignSystem.Radius.shape(16))
+        .overlay(DesignSystem.Radius.shape(16).stroke(theme.separator, lineWidth: 1))
+        .accessibilityElement(children: .combine)
     }
 }
