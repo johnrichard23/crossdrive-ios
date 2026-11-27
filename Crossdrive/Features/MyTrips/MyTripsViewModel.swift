@@ -31,6 +31,11 @@ final class MyTripsViewModel {
         !isSignedIn()
     }
 
+    /// Where the person stands on an event, for the Events list; `nil` if not joined.
+    func status(of eventID: Event.ID) -> MyTrip.Status? {
+        state.value?.first { $0.id == eventID }?.status
+    }
+
     func load(forceReload: Bool = false) async {
         if case .loaded = state, !forceReload {
             return

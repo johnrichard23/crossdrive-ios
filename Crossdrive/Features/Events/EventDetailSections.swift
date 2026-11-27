@@ -311,47 +311,113 @@ struct EventBringSection: View {
 
 // MARK: - Going
 
-/// The card for a person who is going: where to meet and what is left to do.
+/// The card for a person who is going: where they stand, where and when to
+/// meet, and what is left. The way into My trip is the pinned bar's button.
 struct EventGoingCard: View {
     let meetup: EventMeetup?
     /// "Saturday, Dec 12".
     let day: String
+    /// "Starts in 16 days".
+    let countdown: String?
     let waiverSigned: Bool
     let onOpenTrip: () -> Void
 
+    @Environment(\.theme) private var theme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .body) private var iconTile: CGFloat = 32
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("You're going")
-                    .textRole(.headline, emphasized: true)
-                    .accessibilityAddTraits(.isHeader)
-                Spacer(minLength: 8)
-                if !waiverSigned {
-                    Text("Waiver not signed yet").textRole(.footnote, emphasized: true)
+            CDFlowLayout(spacing: 8) {
+                MyTripStatusTag(status: .going)
+                    .fixedSize()
+                if let countdown {
+                    Text(countdown)
+                        .textRole(.subheadline)
+                        .foregroundStyle(theme.labelSecondary)
                 }
             }
-            .foregroundStyle(CDColor.onBrandSoft)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+
             if let meetup {
-                HStack(alignment: .top, spacing: 8) {
-                    DSIcon(.mapPin, role: .headline)
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("Meet at \(meetup.point)").textRole(.headline, emphasized: true)
-                        Text("\(day) · \(meetup.time)").textRole(.subheadline)
+                divider
+                HStack(spacing: 12) {
+                    tile(.mapPin, foreground: theme.accent, fill: CDColor.brandSoft)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(meetup.point).textRole(.body, emphasized: true)
+                        Text("\(day) · \(meetup.time)")
+                            .textRole(.subheadline)
+                            .foregroundStyle(theme.labelSecondary)
                     }
+                    Spacer(minLength: 0)
                 }
-                .foregroundStyle(CDColor.onBrandSoft)
-                .padding(.top, 14)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
                 .accessibilityElement(children: .combine)
+                .accessibilityLabel(Text("Meet at \(meetup.point), \(day), \(meetup.time)"))
             }
-            Button("See your full plan in My trip", action: onOpenTrip)
-                .textRole(.subheadline, emphasized: true)
-                .foregroundStyle(CDColor.onBrandSoft)
-                .frame(minHeight: 48, alignment: .leading)
+
+            if !waiverSigned {
+                divider
+                Button(action: onOpenTrip) {
+                    HStack(spacing: 12) {
+                        tile(
+                            .system("doc.text"),
+                            foreground: CDColor.onHarvestSoft,
+                            fill: CDColor.harvestSoft
+                        )
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Waiver not signed yet").textRole(.body, emphasized: true)
+                            Text("Sign it before you board. It takes a minute.")
+                                .textRole(.subheadline)
+                                .foregroundStyle(theme.labelSecondary)
+                        }
+                        Spacer(minLength: 0)
+                        DSIcon(.chevronRight, role: .subheadline)
+                            .foregroundStyle(theme.labelTertiary)
+                            .accessibilityHidden(true)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint(Text("Opens My trip"))
+            }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 16)
-        .padding(.bottom, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(CDColor.brandSoft, in: DesignSystem.Radius.shape(16))
+        .background(theme.surface, in: DesignSystem.Radius.shape(16))
+        .overlay(DesignSystem.Radius.shape(16).stroke(theme.separator, lineWidth: 1))
     }
+
+    private var divider: some View {
+        Rectangle().fill(theme.surfacePressed).frame(height: 1)
+    }
+
+    /// At the largest sizes the words need the width more than the icon does.
+    @ViewBuilder
+    private func tile(_ icon: DSIcon.Source, foreground: Color, fill: Color) -> some View {
+        if !dynamicTypeSize.isAccessibilitySize {
+            DSIcon(icon, role: .body)
+                .foregroundStyle(foreground)
+                .frame(width: iconTile, height: iconTile)
+                .background(fill, in: DesignSystem.Radius.shape(10))
+                .accessibilityHidden(true)
+        }
+    }
+}
+
+#Preview("Going card") {
+    EventGoingCard(
+        meetup: EventMeetup(point: "Magallanes port", time: "5:30 AM"),
+        day: "Saturday, Dec 12",
+        countdown: "Starts in 16 days",
+        waiverSigned: false,
+        onOpenTrip: {}
+    )
+    .padding()
+    .theme(.crossdrive)
 }

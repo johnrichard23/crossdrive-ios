@@ -64,6 +64,8 @@ struct EventsView: View {
         }
         .dsToast($viewModel.toast)
         .task { await viewModel.load() }
+        // The joined trips, for the Going tag on each card.
+        .task(id: isSignedIn) { await myTrips.load(forceReload: true) }
         .onChange(of: path) { _, routes in
             viewModel.openTripsChanged(to: routes.compactMap { route in
                 if case let .detail(id) = route {
@@ -176,7 +178,7 @@ struct EventsView: View {
                 LazyVStack(spacing: 16) {
                     ForEach(viewModel.visibleEvents) { event in
                         NavigationLink(value: EventsRoute.detail(event.id)) {
-                            EventCard(event: event)
+                            EventCard(event: event, status: myTrips.status(of: event.id))
                         }
                         .buttonStyle(.plain)
                     }
@@ -214,7 +216,7 @@ private func previewScreen(_ viewModel: EventsViewModel) -> some View {
         makeMyTrip: { id in
             let container = DependencyContainer.preview()
             return MyTripView(
-                viewModel: MyTripViewModel(tripID: id, repository: container.myTrips),
+                viewModel: MyTripViewModel(tripID: id, container: container),
                 eventsAPI: container.eventsAPI,
                 imageLoader: container.imageLoader
             )

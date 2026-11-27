@@ -162,6 +162,55 @@ final class AppCoordinatorPlatformTests: XCTestCase {
         XCTAssertEqual(coordinator.itemsPath, [.detail("1")])
     }
 
+    func testHandlePushTap_WhenTripLink_ShouldPresentMyTripSheet() async {
+        // Arrange
+        let coordinator = await started(
+            AppFeatures(),
+            session: FakeAuthSession(state: .signedIn(dana))
+        )
+
+        // Act
+        coordinator.handlePushTap(link: "\(scheme)://trips/behia-going")
+
+        // Assert
+        XCTAssertEqual(coordinator.presentedLink?.link, .trip("behia-going"))
+        XCTAssertEqual(coordinator.eventsPath, [])
+    }
+
+    func testHandle_WhenTripLink_ShouldOpenMyTripOnTheEventsTab() async {
+        // Arrange
+        let coordinator = await started(
+            AppFeatures(),
+            session: FakeAuthSession(state: .signedIn(dana))
+        )
+
+        // Act
+        coordinator.handle(url: link("trips/behia-going"))
+
+        // Assert
+        XCTAssertEqual(coordinator.selectedTab, .events)
+        XCTAssertEqual(coordinator.eventsPath, [.myTrip("behia-going")])
+        XCTAssertNil(coordinator.presentedLink)
+    }
+
+    func testHandlePushTap_WhenGuestOpensATripLink_ShouldAskToSignInThenOpenIt() async throws {
+        // Arrange
+        let coordinator = await started(
+            AppFeatures(),
+            session: FakeAuthSession(signInResult: .success(dana))
+        )
+
+        // Act
+        coordinator.handlePushTap(link: "\(scheme)://trips/behia-going")
+        let askedToSignIn = coordinator.loginGate != nil
+        try await coordinator.signIn(credentials)
+
+        // Assert
+        XCTAssertTrue(askedToSignIn)
+        XCTAssertNil(coordinator.presentedLink)
+        XCTAssertEqual(coordinator.eventsPath, [.myTrip("behia-going")])
+    }
+
     func testHandlePushTap_WhenItStartedTheApp_ShouldPresentAfterLaunch() async {
         // Arrange
         let coordinator = makeCoordinator(AppFeatures())

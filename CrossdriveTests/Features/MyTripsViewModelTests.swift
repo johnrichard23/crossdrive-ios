@@ -16,6 +16,18 @@ final class MyTripsViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.state.value?.map(\.id), ["bulan", "camp-feb"])
     }
 
+    func testStatus_WhenTheEventIsJoined_ShouldGiveItsStatus() async {
+        // Arrange
+        let viewModel = makeViewModel(now: Date(timeIntervalSince1970: 1_790_000_000))
+        await viewModel.load()
+
+        // Act
+        let statuses = ["behia-going", "bulan", "camp-feb", "not-joined"].map(viewModel.status(of:))
+
+        // Assert
+        XCTAssertEqual(statuses, [.going, .waitlisted, .pending, nil])
+    }
+
     func testLoad_WhenSignedOutWhileLoading_ShouldNotShowTheOldTrips() async {
         // Arrange: the first load waits for the server; the person signs out meanwhile.
         let started = Gate()

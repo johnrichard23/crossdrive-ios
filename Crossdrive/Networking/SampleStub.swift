@@ -52,25 +52,29 @@ enum SampleStub {
         """
     }
 
-    static let eventsJSON = """
-    [
-      {
-        "id": "behia", "kind": "trip", "title": "Behia Mission Trip",
-        "place": "Bagatao Island", "travelTime": "1 hr by boat",
-        "startsAt": "2026-12-11T22:00:00Z", "endsAt": "2026-12-14T10:00:00Z",
-        "fee": {"amountMinor": 150000, "currency": "PHP"},
-        "capacity": 34, "registeredCount": 22, "status": "open",
-        "heroImageURL": "https://images.pexels.com/photos/23499309/pexels-photo-23499309.jpeg?auto=compress&w=800"
-      },
-      {
-        "id": "camp-feb", "kind": "camp", "title": "Young Missionaries Camp", "place": "Venue to be announced",
-        "startsAt": "2027-02-19T22:00:00Z", "endsAt": "2027-02-22T04:00:00Z",
-        "fee": {"amountMinor": 100000, "currency": "PHP"},
-        "capacity": 30, "registeredCount": 12, "status": "open",
-        "heroImageURL": "https://images.pexels.com/photos/33714873/pexels-photo-33714873.jpeg?auto=compress&w=800"
-      }
-    ]
-    """
+    /// With `-stub-home-going`, Behia carries the id My trips knows it by.
+    static var eventsJSON: String {
+        let behiaID = CommandLine.arguments.contains("-stub-home-going") ? "behia-going" : "behia"
+        return """
+        [
+          {
+            "id": "\(behiaID)", "kind": "trip", "title": "Behia Mission Trip",
+            "place": "Bagatao Island", "travelTime": "1 hr by boat",
+            "startsAt": "2026-12-11T22:00:00Z", "endsAt": "2026-12-14T10:00:00Z",
+            "fee": {"amountMinor": 150000, "currency": "PHP"},
+            "capacity": 34, "registeredCount": 22, "status": "open",
+            "heroImageURL": "https://images.pexels.com/photos/23499309/pexels-photo-23499309.jpeg?auto=compress&w=800"
+          },
+          {
+            "id": "camp-feb", "kind": "camp", "title": "Young Missionaries Camp", "place": "Venue to be announced",
+            "startsAt": "2027-02-19T22:00:00Z", "endsAt": "2027-02-22T04:00:00Z",
+            "fee": {"amountMinor": 100000, "currency": "PHP"},
+            "capacity": 30, "registeredCount": 12, "status": "open",
+            "heroImageURL": "https://images.pexels.com/photos/33714873/pexels-photo-33714873.jpeg?auto=compress&w=800"
+          }
+        ]
+        """
+    }
 
     /// The trip detail for `id`. "behia-going", "behia-full" and "bulan" are
     /// the going, full and mainland examples; any other id is the guest view.

@@ -272,11 +272,21 @@ final class AppCoordinator {
         guard flow == .main, let pending = pendingLink else { return }
         pendingLink = nil
 
+        // A trip is the user's own, so a guest signs in first; it then opens
+        // in place, since a sheet can't appear while the sign-in sheet leaves.
+        if case let .trip(id) = pending.link, session == .signedOut {
+            requireAccount { [weak self] in self?.openMyTrip(id) }
+            return
+        }
+
         switch pending.presentation {
         case .navigate:
-            selectedTab = .events
             switch pending.link {
-            case let .item(id): itemsPath = [.detail(id)]
+            case let .item(id):
+                selectedTab = .events
+                itemsPath = [.detail(id)]
+            case let .trip(id):
+                openMyTrip(id)
             }
         case .sheet:
             presentedLink = PresentedLink(link: pending.link)

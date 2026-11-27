@@ -14,6 +14,22 @@ final class DeepLinkRouterTests: XCTestCase {
         XCTAssertEqual(link, .item("42"))
     }
 
+    func testParse_WhenTripsLink_ShouldReturnTrip() {
+        // Act
+        let link = router.parse(url("myapp://trips/behia-going"))
+
+        // Assert
+        XCTAssertEqual(link, .trip("behia-going"))
+    }
+
+    func testParse_WhenTripsLinkHasExtraSegments_ShouldReturnNil() {
+        // Act
+        let link = router.parse(url("myapp://trips/behia-going/schedule"))
+
+        // Assert
+        XCTAssertNil(link)
+    }
+
     func testParse_WhenTheSchemeIsUpperCase_ShouldStillMatch() {
         // Act
         let link = router.parse(url("MyApp://items/42"))

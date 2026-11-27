@@ -44,7 +44,7 @@ final class MainTabModels {
 
     /// The My trip screen for one joined trip.
     func myTripView(_ id: Event.ID) -> MyTripView {
-        let model = myTripModels[id] ?? MyTripViewModel(tripID: id, repository: container.myTrips)
+        let model = myTripModels[id] ?? MyTripViewModel(tripID: id, container: container)
         myTripModels[id] = model
         return MyTripView(
             viewModel: model,
