@@ -5,14 +5,26 @@ import Foundation
 struct MinistryMapper: Sendable {
     func model(from dto: MinistryDTO) -> Ministry? {
         guard let id = dto.id, !id.isEmpty, let name = dto.name, !name.isEmpty else { return nil }
+        let imageURL = dto.imageURL.flatMap(URL.init(string:))
+        let photos = (dto.photos ?? []).compactMap(URL.init(string:)).filter { $0.scheme != nil }
         return Ministry(
             id: id,
             name: name,
             schedule: dto.schedule,
             place: dto.place,
             summary: dto.summary ?? "",
-            imageURL: dto.imageURL.flatMap(URL.init(string:))
+            imageURL: imageURL,
+            kind: dto.kind.flatMap(Ministry.Kind.init(rawValue:)) ?? .other,
+            photoURLs: photos.isEmpty ? [imageURL].compactMap(\.self) : photos,
+            partner: dto.partner.flatMap { $0.isEmpty ? nil : $0 },
+            fund: dto.fund.flatMap(fund)
         )
+    }
+
+    /// A fund needs a goal; more kids paid for than the goal reads as the goal.
+    private func fund(from dto: MinistryDTO.FundDTO) -> Ministry.Fund? {
+        guard let goal = dto.kidsGoal, goal > 0 else { return nil }
+        return Ministry.Fund(kidsPaid: min(max(dto.kidsPaid ?? 0, 0), goal), kidsGoal: goal)
     }
 
     func models(from dtos: [MinistryDTO]) -> [Ministry] {

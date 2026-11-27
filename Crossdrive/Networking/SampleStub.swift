@@ -210,23 +210,6 @@ enum SampleStub {
     }
     """
 
-    static let ministriesJSON = """
-    [
-      {
-        "id": "bible-studies", "name": "Community Bible studies", "schedule": "Every week",
-        "place": "Gatbo, Bacon, Sorsogon City",
-        "summary": "We visit a community each week and study the Bible in their place.",
-        "imageURL": "https://images.pexels.com/photos/13011294/pexels-photo-13011294.jpeg?auto=compress&w=800"
-      },
-      {
-        "id": "kids-class", "name": "Sunday kids' class", "schedule": "Every Sunday",
-        "place": "Center location to be announced",
-        "summary": "Kids learn about Jesus and the Bible at our center.",
-        "imageURL": "https://images.pexels.com/photos/8613091/pexels-photo-8613091.jpeg?auto=compress&w=800"
-      }
-    ]
-    """
-
     static let ministryDetailJSON = """
     {
       "ministry": {

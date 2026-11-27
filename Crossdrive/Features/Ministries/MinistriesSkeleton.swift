@@ -2,39 +2,53 @@ import DesignSystem
 import SwiftUI
 
 extension Ministry {
-    /// Made-up ministries with every part present, so the placeholder cards have
-    /// the same shape as real ones. Their words are never read: they are redacted.
-    static let placeholders: [Ministry] = (1 ... 2).map { number in
-        Ministry(
-            id: "placeholder-\(number)",
-            name: "Placeholder ministry",
-            schedule: "Every week",
-            place: "Placeholder place",
-            summary: "A line or two about what this ministry does and who it is for.",
-            imageURL: nil
+    /// Made-up ministries of every kind with every part present, so the
+    /// placeholder sections have the same shape as real ones. Their words are
+    /// never read: they are redacted.
+    static let placeholders: [Ministry] = {
+        let community = (1 ... 2).map { number in
+            Ministry(
+                id: "placeholder-community-\(number)",
+                name: "Community",
+                schedule: "Every week",
+                place: "Placeholder town, province",
+                summary: "",
+                kind: .bibleStudy
+            )
+        }
+        let fund = Ministry(
+            id: "placeholder-fund",
+            name: "Placeholder fund",
+            schedule: "Every month",
+            summary: "A line or two about what a gift pays for and who it helps.",
+            kind: .school,
+            fund: Ministry.Fund(kidsPaid: 1, kidsGoal: 2)
         )
-    }
+        return community + [fund]
+    }()
 }
 
-/// The cards the Ministries list shows while it loads: the real cards with
-/// made-up words, redacted and shimmering, so nothing moves when they arrive.
+/// The sections the Ministries list shows while it loads: the real sections
+/// with made-up words, redacted and shimmering, so nothing moves when they arrive.
 struct MinistriesSkeleton: View {
     var body: some View {
-        VStack(spacing: 16) {
-            ForEach(Ministry.placeholders) { ministry in
-                MinistryCard(ministry: ministry)
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach(MinistrySection.sections(from: Ministry.placeholders, showing: nil)) {
+                MinistrySectionView(section: $0)
             }
         }
-        // Grey and faint, like the canvas: card colours would read as real content.
+        // Grey and faint: card colours would read as real content.
         .saturation(0)
         .opacity(0.5)
         .dsLoading(true)
+        .allowsHitTesting(false)
+        .accessibilityLabel("Loading ministries")
     }
 }
 
 #Preview("Loading") {
     ScrollView {
-        MinistriesSkeleton().screenMargins()
+        MinistriesSkeleton()
     }
-    .background(Color(.systemGroupedBackground))
+    .theme(.crossdrive)
 }
