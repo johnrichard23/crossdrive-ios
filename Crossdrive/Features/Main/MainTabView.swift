@@ -57,18 +57,25 @@ struct MainTabView: View {
             )
 
             NavigationStack {
-                MoreView(coordinator: coordinator, myTrips: models.myTrips)
-                    .navigationTitle(MainTab.profile.title)
-                    .navigationDestination(for: EventsRoute.self) { route in
-                        switch route {
-                        case .myTrip, .schedule, .activity: models.tripScreen(route)
-                        case let .detail(id):
-                            EventDetailView(
-                                viewModel: models.events.detailViewModel(for: id),
-                                onOpenTrip: { coordinator.openMyTrip(id) }
-                            )
-                        }
+                ProfileView(
+                    coordinator: coordinator,
+                    myTrips: models.myTrips,
+                    onSeeAllTrips: {
+                        models.events.scope = .mine
+                        coordinator.eventsPath = []
+                        coordinator.selectedTab = .events
                     }
+                )
+                .navigationDestination(for: EventsRoute.self) { route in
+                    switch route {
+                    case .myTrip, .schedule, .activity: models.tripScreen(route)
+                    case let .detail(id):
+                        EventDetailView(
+                            viewModel: models.events.detailViewModel(for: id),
+                            onOpenTrip: { coordinator.openMyTrip(id) }
+                        )
+                    }
+                }
             }
             .tabItem { Label(MainTab.profile.title, image: MainTab.profile.iconName) }
             .tag(MainTab.profile)
