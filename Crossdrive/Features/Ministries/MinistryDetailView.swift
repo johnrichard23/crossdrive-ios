@@ -6,12 +6,17 @@ import SwiftUI
 /// needed, and a pinned Give bar.
 struct MinistryDetailView: View {
     @State private var viewModel: MinistryDetailViewModel
-    @State private var hasPrayed = false
+    /// The screen's width, known before anything shows, so the top photo can
+    /// be made ready at its real size while the skeleton is up.
+    @State private var containerWidth: CGFloat = 0
 
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
     @Environment(\.isOnline) private var isOnline
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.displayScale) private var displayScale
+
+    private static let heroHeight: CGFloat = 260
 
     init(viewModel: MinistryDetailViewModel) {
         _viewModel = State(initialValue: viewModel)
@@ -23,10 +28,17 @@ struct MinistryDetailView: View {
             .overlay(alignment: .top) { backButton }
             .toolbar(.hidden, for: .navigationBar)
             .toolbar(.hidden, for: .tabBar)
-            .task { await viewModel.load() }
+            .dsToast($viewModel.toast)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { containerWidth = $0 }
+            .task(id: containerWidth > 0) {
+                guard containerWidth > 0 else { return }
+                await viewModel.load(heroPixels: heroPixels)
+            }
+            .onAppear { viewModel.isOnline = isOnline }
             .onChange(of: isOnline) { _, isOnline in
+                viewModel.isOnline = isOnline
                 if isOnline {
-                    Task { await viewModel.connectionRestored() }
+                    Task { await viewModel.connectionRestored(heroPixels: heroPixels) }
                 }
             }
     }
@@ -56,16 +68,49 @@ struct MinistryDetailView: View {
         }
     }
 
+    private var heroPixels: Int {
+        ImageDownsampler.maxPixels(
+            for: CGSize(width: containerWidth, height: Self.heroHeight),
+            scale: displayScale
+        )
+    }
+
+    /// Grey blocks shaped like the page: the photo, the stamp, the title, the
+    /// summary, the place, then the photos row.
     private var skeleton: some View {
         ScrollView {
-            VStack(spacing: theme.spacing.groupGap) {
-                ForEach(0 ..< 3, id: \.self) { _ in DSSkeletonCard() }
+            VStack(alignment: .leading, spacing: 0) {
+                Rectangle()
+                    .fill(theme.surfacePressed)
+                    .frame(height: Self.heroHeight)
+                VStack(alignment: .leading, spacing: 12) {
+                    block(width: 96, height: 24, radius: 4)
+                    block(width: 260, height: 32, radius: 8)
+                    block(height: 16, radius: 6)
+                    block(width: 220, height: 16, radius: 6)
+                    block(width: 200, height: 18, radius: 6)
+                    block(width: 90, height: 22, radius: 6).padding(.top, 10)
+                    HStack(spacing: 10) {
+                        block(width: 208, height: 148, radius: 16)
+                        block(width: 208, height: 148, radius: 16)
+                    }
+                }
+                .screenMargins()
+                .padding(.top, 16)
             }
-            .screenMargins()
-            .padding(.top, 72)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(Text("Loading"))
+            .dsLoading(true)
         }
+        .scrollDisabled(true)
+        .ignoresSafeArea(edges: .top)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Loading"))
+    }
+
+    private func block(width: CGFloat? = nil, height: CGFloat, radius: CGFloat) -> some View {
+        DesignSystem.Radius.shape(radius)
+            .fill(theme.surfacePressed)
+            .frame(maxWidth: width ?? .infinity, alignment: .leading)
+            .frame(width: width, height: height)
     }
 
     private var backButton: some View {
@@ -91,9 +136,7 @@ struct MinistryDetailView: View {
     private func detailScreen(_ detail: MinistryDetail) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                DSRemoteImage(url: detail.ministry.imageURL) { DSImagePlaceholder() }
-                    .frame(height: 260)
-                    .accessibilityHidden(true)
+                hero(detail.ministry)
                 VStack(alignment: .leading, spacing: 12) {
                     intro(detail.ministry)
                     if !detail.photos.isEmpty {
@@ -127,6 +170,25 @@ struct MinistryDetailView: View {
                     .overlay(alignment: .top) { Rectangle().fill(theme.separator).frame(height: 1) }
             }
         }
+    }
+
+    /// The photo loaded with the page when it came in time, else the remote one.
+    /// Drawn over a fixed-size frame: a filled photo would otherwise widen the page.
+    private func hero(_ ministry: Ministry) -> some View {
+        Color.clear
+            .frame(maxWidth: .infinity)
+            .frame(height: Self.heroHeight)
+            .overlay {
+                if let image = viewModel.heroImage {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    DSRemoteImage(url: ministry.heroURL) { DSImagePlaceholder() }
+                }
+            }
+            .clipped()
+            .accessibilityHidden(true)
     }
 
     private func intro(_ ministry: Ministry) -> some View {
@@ -180,8 +242,8 @@ struct MinistryDetailView: View {
             if !dynamicTypeSize.isAccessibilitySize {
                 Spacer(minLength: 0)
             }
-            Button { hasPrayed.toggle() } label: {
-                Text(hasPrayed ? "You prayed" : "I prayed")
+            Button { Task { await viewModel.pray() } } label: {
+                Text(viewModel.hasPrayed ? "You prayed" : "I prayed")
                     .textRole(.subheadline, emphasized: true)
                     .foregroundStyle(theme.labelPrimary)
                     .padding(.horizontal, 18)
@@ -189,7 +251,7 @@ struct MinistryDetailView: View {
                     .overlay(Capsule().stroke(theme.labelSecondary, lineWidth: 1.5))
             }
             .buttonStyle(.plain)
-            .sensoryFeedback(.selection, trigger: hasPrayed)
+            .sensoryFeedback(.success, trigger: viewModel.hasPrayed) { _, prayed in prayed }
         }
     }
 
@@ -236,12 +298,14 @@ struct MinistryDetailView: View {
     // MARK: - Give bar
 
     private func giveBar(_ ministry: Ministry) -> some View {
-        Button("Give to \(ministry.name)") {}
-            .buttonStyle(.ds(.primary))
-            .screenMargins()
-            .padding(.top, 14)
-            .padding(.bottom, 8)
-            .frame(maxWidth: .infinity)
+        Button("Give to \(ministry.name)") {
+            viewModel.toast = .info(String(localized: "Giving in the app is coming soon."))
+        }
+        .buttonStyle(.ds(.primary))
+        .screenMargins()
+        .padding(.top, 14)
+        .padding(.bottom, 8)
+        .frame(maxWidth: .infinity)
     }
 
     private func sectionHeader(_ title: LocalizedStringKey) -> some View {
@@ -257,7 +321,8 @@ private func previewViewModel(
 ) -> MinistryDetailViewModel {
     MinistryDetailViewModel(
         api: MinistriesAPI(client: StubHTTPClient(handler)),
-        ministryID: "bible-studies"
+        ministryID: "bible-studies",
+        imageLoader: URLSessionImageLoader()
     )
 }
 

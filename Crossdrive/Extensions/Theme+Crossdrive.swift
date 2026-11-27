@@ -71,8 +71,6 @@ enum CDColor {
     static let pineDivider = DesignSystem.color(light: 0x3A4B49, dark: 0x34504D)
     static let pineLine = DesignSystem.color(light: 0x6F7E7D, dark: 0x6F7E7D)
     static let lanesOnPine = DesignSystem.color(light: 0x9C7AD6, dark: 0x9C7AD6)
-    /// Small purple words on the Pine panel ("Every week" on a community card).
-    static let accentOnPine = DesignSystem.color(light: 0xB9A0EA, dark: 0xB9A0EA)
     /// The ring around the round photo on the Home ticket.
     static let pineRing = DesignSystem.color(light: 0x2E3F3C, dark: 0x34504D)
     /// The empty part of a slots bar, and the small grey captions beside it.

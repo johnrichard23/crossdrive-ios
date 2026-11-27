@@ -31,4 +31,9 @@ struct Ministry: Identifiable, Hashable, Sendable {
     /// Who runs a skills program with CrossDrive.
     var partner: String?
     var fund: Fund?
+
+    /// The photo at the top of its page: the main one, else the first of the grid.
+    var heroURL: URL? {
+        imageURL ?? photoURLs.first
+    }
 }

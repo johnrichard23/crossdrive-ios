@@ -43,6 +43,7 @@ struct MainTabView: View {
                     MinistryDetailViewModel(
                         api: coordinator.container.ministriesAPI,
                         ministryID: id,
+                        imageLoader: coordinator.container.imageLoader,
                         reporter: coordinator.container.services.crashReporter
                     )
                 }
