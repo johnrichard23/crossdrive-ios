@@ -246,6 +246,27 @@ final class AppCoordinatorAccountTests: XCTestCase {
         XCTAssertEqual(coordinator.session, .signedOut)
     }
 
+    func testSession_WhenItEndsByItself_ShouldClearTheSavedTrips() async throws {
+        // Arrange: Dana's trips are saved on the phone.
+        let session = FakeAuthSession(state: .signedIn(dana))
+        let coordinator = await startedCoordinator(
+            AppFeatures(authentication: .required),
+            session: session
+        )
+        let store = coordinator.container.myTripsStore
+        _ = try await coordinator.container.myTrips.all()
+
+        // Act
+        await session.send(.signedOut)
+        for _ in 0 ..< 1000 where try await !store.all().isEmpty {
+            await Task.yield()
+        }
+
+        // Assert
+        let saved = try await store.all()
+        XCTAssertEqual(saved.count, 0)
+    }
+
     // MARK: - Helpers
 
     private func startedCoordinator(

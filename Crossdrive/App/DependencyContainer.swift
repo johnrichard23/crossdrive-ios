@@ -18,6 +18,10 @@ final class DependencyContainer: Sendable {
     let eventsAPI: EventsAPI
     let ministriesAPI: MinistriesAPI
     let accountAPI: AccountAPI
+    let myTripsAPI: MyTripsAPI
+    /// The joined trips saved on the phone, so they open at the pier.
+    let myTripsStore: any Store<MyTrip>
+    let myTrips: Repository<MyTrip>
     let services: PlatformServices
     /// Downloads and decodes photos that must be ready before a screen shows.
     let imageLoader: any ImageLoading
@@ -38,6 +42,7 @@ final class DependencyContainer: Sendable {
         services: PlatformServices,
         imageLoader: any ImageLoading,
         mapSnapshotter: any MapSnapshotting,
+        myTripsStore: any Store<MyTrip> = InMemoryStore(),
         clearHTTPSession: @escaping @Sendable () async -> Void = {}
     ) {
         self.features = features
@@ -55,6 +60,13 @@ final class DependencyContainer: Sendable {
         eventsAPI = EventsAPI(client: client)
         ministriesAPI = MinistriesAPI(client: client)
         accountAPI = AccountAPI(client: client)
+        myTripsAPI = MyTripsAPI(client: client)
+        self.myTripsStore = myTripsStore
+        myTrips = Repository(
+            remote: MyTripsRemote(api: myTripsAPI),
+            store: myTripsStore,
+            policy: .networkFirst
+        )
     }
 
     /// The real graph for the running app.
@@ -95,6 +107,7 @@ final class DependencyContainer: Sendable {
             services: services,
             imageLoader: HTTPImageLoader(client: client),
             mapSnapshotter: AppleMapSnapshotter(),
+            myTripsStore: FileStore(name: "my-trips", directory: Self.savedDataDirectory),
             clearHTTPSession: { await client.clearSession() }
         )
     }
@@ -171,6 +184,21 @@ final class DependencyContainer: Sendable {
         await services.push.unregister()
         await session.signOut()
         await clearHTTPSession()
+        await clearSavedData()
+    }
+
+    /// Empties what this person left on the phone, so the next one never sees
+    /// it, even offline. Also run when the session ends by itself.
+    /// shortcut: a trips refresh still in flight can save again afterwards;
+    /// cancel it once `Repository` can cancel refreshes.
+    func clearSavedData() async {
+        try? await myTripsStore.deleteAll()
+    }
+
+    /// Application Support, not Caches: iOS must not clear a trip before the pier.
+    private static var savedDataDirectory: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("DataLayer", isDirectory: true)
     }
 
     /// Called when the app comes back to the foreground.

@@ -1,7 +1,7 @@
 import Foundation
 
 /// What kind of event it is. Conferences have no sign-up here, so they are not events.
-enum EventKind: String, Hashable, Sendable, CaseIterable {
+enum EventKind: String, Codable, Hashable, Sendable, CaseIterable {
     case trip
     case camp
 
