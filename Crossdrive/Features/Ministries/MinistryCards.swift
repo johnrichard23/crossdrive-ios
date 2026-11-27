@@ -1,12 +1,10 @@
 import DesignSystem
 import SwiftUI
 
-/// A Bible-study community: a grid of three photos over a white card with how
-/// often, the community and the place, like the school fund card. Opens the ministry.
+/// A Bible-study community: a grid of three photos over the dark Pine panel
+/// with how often, the community and the place. Opens the ministry.
 struct MinistryCommunityCard: View {
     let ministry: Ministry
-
-    @Environment(\.theme) private var theme
 
     var body: some View {
         NavigationLink(value: MinistriesRoute.detail(ministry.id)) {
@@ -16,15 +14,15 @@ struct MinistryCommunityCard: View {
                     if let schedule = ministry.schedule {
                         Text(schedule)
                             .textRole(.footnote, emphasized: true)
-                            .foregroundStyle(theme.accent)
+                            .foregroundStyle(CDColor.accentOnPine)
                     }
                     Text(ministry.name)
                         .textRole(.title2, emphasized: true)
-                        .foregroundStyle(theme.labelPrimary)
+                        .foregroundStyle(CDColor.onPine)
                     if let place = ministry.place {
                         Text(place)
                             .textRole(.subheadline)
-                            .foregroundStyle(theme.labelSecondary)
+                            .foregroundStyle(CDColor.onPineMuted)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -32,9 +30,8 @@ struct MinistryCommunityCard: View {
                 .padding(.bottom, 16)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .background(theme.surface, in: DesignSystem.Radius.shape(20))
+            .background(CDColor.pineGround, in: DesignSystem.Radius.shape(20))
             .clipShape(DesignSystem.Radius.shape(20))
-            .overlay(DesignSystem.Radius.shape(20).stroke(theme.separator, lineWidth: 1))
             .contentShape(DesignSystem.Radius.shape(20))
         }
         .buttonStyle(.plain)
@@ -46,7 +43,6 @@ struct MinistryCommunityCard: View {
 struct MinistryPhotoGrid: View {
     let urls: [URL]
 
-    @Environment(\.theme) private var theme
     @ScaledMetric(relativeTo: .body) private var rowHeight: CGFloat = 68
 
     var body: some View {
@@ -66,7 +62,7 @@ struct MinistryPhotoGrid: View {
 
     private func photo(_ index: Int) -> some View {
         DSRemoteImage(url: urls.indices.contains(index) ? urls[index] : nil) {
-            theme.surfacePressed
+            CDColor.pineBand
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
