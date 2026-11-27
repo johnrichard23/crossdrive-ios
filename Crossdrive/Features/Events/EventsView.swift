@@ -5,7 +5,10 @@ import SwiftUI
 /// Events: upcoming trips and camps, with a kind filter.
 struct EventsView: View {
     @State private var viewModel: EventsViewModel
+    @State private var myTrips: MyTripsViewModel
     @Binding private var path: [EventsRoute]
+    private let isSignedIn: Bool
+    private let makeMyTrip: (Event.ID) -> MyTripView
 
     @Environment(\.theme) private var theme
     @Environment(\.isOnline) private var isOnline
@@ -13,9 +16,15 @@ struct EventsView: View {
 
     init(
         viewModel: EventsViewModel,
+        myTrips: MyTripsViewModel,
+        isSignedIn: Bool,
+        makeMyTrip: @escaping (Event.ID) -> MyTripView,
         path: Binding<[EventsRoute]>
     ) {
         _viewModel = State(initialValue: viewModel)
+        _myTrips = State(initialValue: myTrips)
+        self.isSignedIn = isSignedIn
+        self.makeMyTrip = makeMyTrip
         _path = path
     }
 
@@ -32,11 +41,11 @@ struct EventsView: View {
                     chips
                     content
                 } else {
-                    DSStateView(
-                        "No events yet.",
-                        message: "Events you sign up for show here.",
-                        systemImage: "calendar"
+                    MyEventsList(
+                        viewModel: myTrips,
+                        onSeeOpenEvents: { viewModel.scope = .upcoming }
                     )
+                    .task(id: isSignedIn) { await myTrips.load(forceReload: true) }
                 }
             }
             .background(theme.background)
@@ -44,16 +53,23 @@ struct EventsView: View {
             .navigationDestination(for: EventsRoute.self) { route in
                 switch route {
                 case let .detail(id):
-                    EventDetailView(viewModel: viewModel.detailViewModel(for: id))
+                    EventDetailView(
+                        viewModel: viewModel.detailViewModel(for: id),
+                        onOpenTrip: { path.append(.myTrip(id)) }
+                    )
+                case let .myTrip(id):
+                    makeMyTrip(id)
                 }
             }
         }
         .dsToast($viewModel.toast)
         .task { await viewModel.load() }
         .onChange(of: path) { _, routes in
-            viewModel.openTripsChanged(to: routes.map { route in
-                switch route {
-                case let .detail(id): id
+            viewModel.openTripsChanged(to: routes.compactMap { route in
+                if case let .detail(id) = route {
+                    id
+                } else {
+                    nil
                 }
             })
         }
@@ -190,6 +206,19 @@ private func previewViewModel(
 private func previewScreen(_ viewModel: EventsViewModel) -> some View {
     EventsView(
         viewModel: viewModel,
+        myTrips: MyTripsViewModel(
+            repository: DependencyContainer.preview().myTrips,
+            isSignedIn: { true }
+        ),
+        isSignedIn: true,
+        makeMyTrip: { id in
+            let container = DependencyContainer.preview()
+            return MyTripView(
+                viewModel: MyTripViewModel(tripID: id, repository: container.myTrips),
+                eventsAPI: container.eventsAPI,
+                imageLoader: container.imageLoader
+            )
+        },
         path: .constant([])
     )
     .theme(.crossdrive)

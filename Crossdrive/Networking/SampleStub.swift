@@ -23,11 +23,13 @@ enum SampleStub {
             ? #""me": {"status": "going", "waiverSigned": false, "paid": false},"#
             : ""
         let meetup = going ? #""meetup": {"point": "Magallanes port", "time": "5:30 AM"},"# : ""
+        // The going trip has the id My trips and Trip detail use for it.
+        let id = going ? "behia-going" : "behia"
         return """
         {
           "nextTrip": {
             "event": {
-              "id": "behia", "kind": "trip", "title": "Behia Mission Trip",
+              "id": "\(id)", "kind": "trip", "title": "Behia Mission Trip",
               "place": "Bagatao Island", "travelTime": "1 hr by boat",
               "startsAt": "2026-12-11T22:00:00Z", "endsAt": "2026-12-14T10:00:00Z",
               "fee": {"amountMinor": 150000, "currency": "PHP"},

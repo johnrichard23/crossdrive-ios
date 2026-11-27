@@ -10,14 +10,20 @@ struct HomeView: View {
     /// made ready at their real size while the skeleton is up.
     @State private var containerWidth: CGFloat = 0
     @Binding private var path: [EventsRoute]
+    private let makeMyTrip: (Event.ID) -> MyTripView
 
     @Environment(\.theme) private var theme
     @Environment(\.isOnline) private var isOnline
     @Environment(\.displayScale) private var displayScale
     @Environment(\.horizontalSizeClass) private var sizeClass
 
-    init(viewModel: HomeViewModel, path: Binding<[EventsRoute]>) {
+    init(
+        viewModel: HomeViewModel,
+        makeMyTrip: @escaping (Event.ID) -> MyTripView,
+        path: Binding<[EventsRoute]>
+    ) {
         _viewModel = State(initialValue: viewModel)
+        self.makeMyTrip = makeMyTrip
         _path = path
     }
 
@@ -32,7 +38,13 @@ struct HomeView: View {
             .navigationDestination(for: EventsRoute.self) { route in
                 switch route {
                 case let .detail(id):
-                    EventDetailView(viewModel: viewModel.detailViewModel(for: id), source: .home)
+                    EventDetailView(
+                        viewModel: viewModel.detailViewModel(for: id),
+                        source: .home,
+                        onOpenTrip: { path.append(.myTrip(id)) }
+                    )
+                case let .myTrip(id):
+                    makeMyTrip(id)
                 }
             }
         }
@@ -48,9 +60,11 @@ struct HomeView: View {
             }
         }
         .onChange(of: path) { _, routes in
-            viewModel.openTripsChanged(to: routes.map { route in
-                switch route {
-                case let .detail(id): id
+            viewModel.openTripsChanged(to: routes.compactMap { route in
+                if case let .detail(id) = route {
+                    id
+                } else {
+                    nil
                 }
             })
         }
@@ -76,7 +90,7 @@ struct HomeView: View {
 
     private var mediaLayout: HomeViewModel.MediaLayout {
         HomeViewModel.MediaLayout(
-            tripSize: CGSize(width: max(contentWidth - 28, 0), height: HomeTripCard.photoHeight),
+            tripSize: CGSize(width: contentWidth, height: HomeTripCard.photoHeight),
             storySize: CGSize(width: contentWidth, height: storyHeight),
             scale: displayScale
         )
@@ -145,7 +159,8 @@ struct HomeView: View {
                 HomeTripCard(
                     trip: trip,
                     photo: viewModel.tripImage,
-                    onOpenTrip: { path.append(.detail(trip.event.id)) }
+                    onOpenTrip: { path.append(.detail(trip.event.id)) },
+                    onOpenMyTrip: { path.append(.myTrip(trip.event.id)) }
                 )
             } else {
                 HomeNoTripCard()

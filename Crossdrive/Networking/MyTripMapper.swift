@@ -45,6 +45,8 @@ struct MyTripMapper: Sendable {
         return MyTrip.TripSummary(
             kind: dto.kind.flatMap(EventKind.init(rawValue:)) ?? .trip,
             name: name,
+            place: nonEmpty(dto.place),
+            heroImageURL: dto.heroImageURL.flatMap(Self.httpsURL),
             startsAt: startsAt,
             endsAt: endsAt,
             fee: dto.fee.flatMap(events.money),
@@ -110,6 +112,11 @@ struct MyTripMapper: Sendable {
             ask: dto.ask.flatMap(person),
             movedFrom: EventMapper.date(dto.movedFrom)
         )
+    }
+
+    private static func httpsURL(_ text: String) -> URL? {
+        guard let url = URL(string: text), url.scheme?.lowercased() == "https" else { return nil }
+        return url
     }
 
     private func nonEmpty(_ text: String?) -> String? {

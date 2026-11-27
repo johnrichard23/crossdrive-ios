@@ -33,6 +33,22 @@ struct HomeTrip: Hashable, Sendable {
         }
     }
 
+    /// What is still open before the trip: the fee and the waiver. 0 unless going.
+    var toDoCount: Int {
+        guard case let .going(paid, waiverSigned) = bar else { return 0 }
+        return (paid ? 0 : 1) + (waiverSigned ? 0 : 1)
+    }
+
+    /// "Starts in 16 days", counted in Manila days; `nil` once the trip has started.
+    func countdown(now: Date) -> String? {
+        switch event.daysUntilStart(from: now) {
+        case ..<0: nil
+        case 0: String(localized: "Starts today")
+        case 1: String(localized: "Starts tomorrow")
+        case let days: String(localized: "Starts in \(days) days")
+        }
+    }
+
     /// The route line's two ends ("Magallanes", "Bagatao Island"); `nil` unless both are known.
     var route: (origin: String, destination: String)? {
         guard let origin = fromPlace, !origin.isEmpty, let destination = event.place,

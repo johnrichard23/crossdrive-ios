@@ -157,7 +157,7 @@ struct RegistrationView: View {
             .padding(.vertical, 12)
             .background(.regularMaterial)
         } else if viewModel.isDone {
-            Button("Done") { onClose(true) }
+            Button("Go to My trip") { onClose(true) }
                 .buttonStyle(.ds(.primary))
                 .screenMargins()
                 .padding(.vertical, 12)

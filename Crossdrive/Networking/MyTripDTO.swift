@@ -27,6 +27,8 @@ struct MyTripDTO: Codable, Sendable {
         var id: String?
         var kind: String?
         var name: String?
+        var place: String?
+        var heroImageURL: String?
         var startsAt: String?
         var endsAt: String?
         var fee: Crossdrive.EventDTO.MoneyDTO?
