@@ -2,7 +2,8 @@ import DataLayer
 import DesignSystem
 import SwiftUI
 
-/// Ministries: the ones CrossDrive runs, each with Pray and Give.
+/// Ministries: the ones CrossDrive runs, grouped by kind (Bible studies, the
+/// school fund, skills programs), with a chip to show one kind.
 struct MinistriesView: View {
     @State private var viewModel: MinistriesViewModel
     @Binding private var path: [MinistriesRoute]
@@ -60,8 +61,8 @@ struct MinistriesView: View {
                 message: "Our ministries will show here.",
                 systemImage: "person.2"
             )
-        case let .loaded(ministries):
-            list(ministries)
+        case .loaded:
+            list
         case .failed:
             DSStateView.error(message: "Check your connection, then try again.") {
                 Task { await viewModel.load() }
@@ -71,31 +72,62 @@ struct MinistriesView: View {
         }
     }
 
-    /// The give banner is real and stays; only the cards wait for their data.
+    /// The give banner is real and stays; only the sections wait for their data.
     private var skeleton: some View {
         ScrollView {
-            VStack(spacing: 16) {
-                giveBanner
+            VStack(alignment: .leading, spacing: 12) {
+                giveBanner.screenMargins()
                 MinistriesSkeleton()
             }
-            .screenMargins()
             .padding(.bottom, theme.spacing.groupGap)
         }
         .scrollDisabled(true)
     }
 
-    private func list(_ ministries: [Ministry]) -> some View {
+    private var list: some View {
         ScrollView {
-            LazyVStack(spacing: 16) {
-                giveBanner
-                ForEach(ministries) { ministry in
-                    MinistryCard(ministry: ministry)
+            VStack(alignment: .leading, spacing: 12) {
+                if viewModel.kinds.count > 1 {
+                    chips
+                }
+                giveBanner.screenMargins()
+                ForEach(viewModel.sections) { section in
+                    MinistrySectionView(section: section)
                 }
             }
-            .screenMargins()
             .padding(.bottom, theme.spacing.groupGap)
         }
         .refreshable { await viewModel.load(forceReload: true) }
+    }
+
+    /// All, then one chip per kind on the list.
+    private var chips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                chip(String(localized: "All"), isOn: viewModel.kind == nil) { viewModel.kind = nil }
+                ForEach(viewModel.kinds, id: \.self) { kind in
+                    chip(MinistrySection.title(of: kind), isOn: viewModel.kind == kind) {
+                        viewModel.kind = kind
+                    }
+                }
+            }
+            .screenMargins()
+        }
+        .sensoryFeedback(.selection, trigger: viewModel.kind)
+    }
+
+    private func chip(_ title: String, isOn: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .textRole(.subheadline, emphasized: isOn)
+                .foregroundStyle(isOn ? theme.background : theme.labelPrimary)
+                .padding(.horizontal, 16)
+                .frame(minHeight: 44)
+                .background(isOn ? theme.labelPrimary : theme.surface, in: Capsule())
+                .overlay(Capsule().stroke(isOn ? .clear : theme.separator, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isOn ? .isSelected : [])
     }
 
     /// The general Give page, for gifts that go where the need is greatest.
