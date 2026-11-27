@@ -10,7 +10,7 @@ struct HomeView: View {
     /// made ready at their real size while the skeleton is up.
     @State private var containerWidth: CGFloat = 0
     @Binding private var path: [EventsRoute]
-    private let makeMyTrip: (Event.ID) -> MyTripView
+    private let makeTripScreen: (EventsRoute) -> TripScreen
 
     @Environment(\.theme) private var theme
     @Environment(\.isOnline) private var isOnline
@@ -19,11 +19,11 @@ struct HomeView: View {
 
     init(
         viewModel: HomeViewModel,
-        makeMyTrip: @escaping (Event.ID) -> MyTripView,
+        makeTripScreen: @escaping (EventsRoute) -> TripScreen,
         path: Binding<[EventsRoute]>
     ) {
         _viewModel = State(initialValue: viewModel)
-        self.makeMyTrip = makeMyTrip
+        self.makeTripScreen = makeTripScreen
         _path = path
     }
 
@@ -43,8 +43,8 @@ struct HomeView: View {
                         source: .home,
                         onOpenTrip: { path.append(.myTrip(id)) }
                     )
-                case let .myTrip(id):
-                    makeMyTrip(id)
+                case .myTrip, .schedule, .activity:
+                    makeTripScreen(route)
                 }
             }
         }
