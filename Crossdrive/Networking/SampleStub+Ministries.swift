@@ -36,6 +36,21 @@ extension SampleStub {
      "bankName": "BPI", "bankAccount": "1234 5678 90"}
     """
 
+    /// The saved pledge, with the gift it was sent, as the server answers.
+    static func pledgeReply(for endpoint: Endpoint) -> HTTPResponse {
+        guard var reply = (try? JSONSerialization.jsonObject(with: Data(pledgeJSON.utf8)))
+            as? [String: Any]
+        else { return .json("{}", status: 500) }
+        let sent = endpoint.body
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
+        reply["frequency"] = sent["frequency"]
+        reply["amountMinor"] = sent["amountMinor"]
+        guard let data = try? JSONSerialization.data(withJSONObject: reply),
+              let text = String(bytes: data, encoding: .utf8)
+        else { return .json("{}", status: 500) }
+        return .json(text)
+    }
+
     static var ministriesJSON: String {
         #"""
         [

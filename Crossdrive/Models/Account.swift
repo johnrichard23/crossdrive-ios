@@ -14,8 +14,9 @@ struct GateTrip: Equatable, Sendable {
     /// What the person was about to do, for the sign-in sheet's words.
     enum Purpose: Equatable, Sendable {
         case joinTrip
-        /// Giving, inside the giving sheet; `steps` is its step row.
-        case give(steps: [String])
+        /// Giving, inside the giving sheet; `steps` is its step row, `nil` when
+        /// the sheet shows none.
+        case give(steps: [String]?)
     }
 
     var title: String

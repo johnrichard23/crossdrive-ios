@@ -18,6 +18,8 @@ final class GiveViewModel: Identifiable {
     static let minimumPesos = 300
     /// Kids go to school for ten months a year.
     static let schoolMonths = 10
+    /// Any other ministry runs all year.
+    static let yearMonths = 12
     private static let monthlyPresets = [300, 500, 800, 1200]
 
     let ministry: Ministry
@@ -34,19 +36,25 @@ final class GiveViewModel: Identifiable {
     /// Set by the screen from the connection; saving waits for one.
     var isOnline = true
 
+    /// Only a guest who opened the sheet signed out sees a step row; it stays
+    /// for the whole sheet so it never jumps.
+    let showsSteps: Bool
+
     private let api: MinistriesAPI
+    private let reporter: any CrashReporter
     private let userName: () -> String?
-    /// Builds the sign-in screen for a guest; `nil` when the person is signed in
-    /// as the sheet opens. `isWanted` says whether the person is still on that
-    /// step; `then` runs once the sign-in has worked.
+    /// Asked on every Continue, so a sign-in or sign-out elsewhere counts.
+    private let needsSignIn: @MainActor () -> Bool
+    /// Builds the sign-in screen; `nil` in an app without optional accounts.
+    /// `isWanted` says whether the person is still on that step; `then` runs
+    /// once the sign-in has worked.
     private let makeSignIn: SignInMaker?
-    private var hasSignedIn = false
-    /// The sign-in the person is on now; Back or Cancel clears it.
+    /// The sign-in the person is on now; Back, Cancel or closing clears it.
     private var signInAttempt: UUID?
-    /// One per gift, so a retry after a timeout never saves two pledges, and a
-    /// changed amount is never answered with the pledge saved for the old one.
-    private var idempotencyKey = UUID().uuidString
-    private var keyedGift: Gift?
+    private var isClosed = false
+    /// One per sheet: a retry after a timeout, even with a changed amount, never
+    /// saves a second pledge. The server answers with the one it saved first.
+    private let idempotencyKey = UUID().uuidString
 
     typealias SignInMaker = (
         _ reminder: GateTrip,
@@ -57,13 +65,18 @@ final class GiveViewModel: Identifiable {
     init(
         ministry: Ministry,
         api: MinistriesAPI,
+        reporter: any CrashReporter = NoCrashReporter(),
         userName: @escaping () -> String?,
+        needsSignIn: @escaping @MainActor () -> Bool = { false },
         makeSignIn: SignInMaker? = nil
     ) {
         self.ministry = ministry
         self.api = api
+        self.reporter = reporter
         self.userName = userName
+        self.needsSignIn = needsSignIn
         self.makeSignIn = makeSignIn
+        showsSteps = makeSignIn != nil && needsSignIn()
     }
 
     // MARK: - Amount
@@ -72,9 +85,15 @@ final class GiveViewModel: Identifiable {
         ministry.kind == .school ? [.monthly, .yearly] : Gift.Frequency.allCases
     }
 
+    /// Ten school months for the school fund, twelve for anything else.
+    private var monthsPerYear: Int {
+        ministry.kind == .school ? Self.schoolMonths : Self.yearMonths
+    }
+
     var presets: [Int] {
-        frequency == .yearly ? Self.monthlyPresets.map { $0 * Self.schoolMonths } : Self
-            .monthlyPresets
+        frequency == .yearly
+            ? Self.monthlyPresets.map { $0 * monthsPerYear }
+            : Self.monthlyPresets
     }
 
     var gift: Gift {
@@ -90,18 +109,20 @@ final class GiveViewModel: Identifiable {
         }
     }
 
-    /// Switching to yearly multiplies by ten, and back divides, so the gift keeps its size.
+    /// Switching to yearly multiplies by the months in its year, and back
+    /// divides, so the gift keeps its size. Nothing changes while sending.
     func setFrequency(_ new: Gift.Frequency) {
-        guard new != frequency else { return }
+        guard new != frequency, !isSending else { return }
         if new == .yearly {
-            pesos *= Self.schoolMonths
+            pesos *= monthsPerYear
         } else if frequency == .yearly {
-            pesos = max(pesos / Self.schoolMonths, Self.minimumPesos)
+            pesos = max(pesos / monthsPerYear, Self.minimumPesos)
         }
         frequency = new
     }
 
     func choose(_ amount: Int) {
+        guard !isSending else { return }
         pesos = max(amount, Self.minimumPesos)
     }
 
@@ -109,7 +130,8 @@ final class GiveViewModel: Identifiable {
     /// the amount when the text isn't one.
     func setCustomAmount(_ text: String) -> Bool {
         let cleaned = text.filter { !$0.isWhitespace && $0 != "," && $0 != "₱" }
-        guard let amount = Int(cleaned), amount >= Self.minimumPesos, amount <= 10_000_000
+        guard !isSending, let amount = Int(cleaned), amount >= Self.minimumPesos,
+              amount <= 10_000_000
         else { return false }
         pesos = amount
         return true
@@ -123,7 +145,9 @@ final class GiveViewModel: Identifiable {
     /// "₱800 for 10 months is ₱8,000, one kid's school year." School fund only.
     var yearLine: String? {
         guard ministry.kind == .school,
-              let kidMonth = ministry.fund?.kidMonthMinor else { return nil }
+              let fund = ministry.fund, let kidMonth = fund.kidMonthMinor,
+              fund.costs.first?.amount.currency == gift.amount.currency
+        else { return nil }
         let kidYear = kidMonth * Self.schoolMonths
         let share = if yearMinor < kidYear {
             String(localized: "part of one kid's school year")
@@ -145,22 +169,16 @@ final class GiveViewModel: Identifiable {
 
     /// How much of the fund's goal this gift adds over a year, up to what is left.
     var giftFraction: Double {
-        guard let fund = ministry.fund, let goal = fund.goal, goal.amountMinor > 0 else { return 0 }
+        guard let fund = ministry.fund, let goal = fund.goal, goal.amountMinor > 0,
+              goal.currency == gift.amount.currency
+        else { return 0 }
         return min(Double(yearMinor) / Double(goal.amountMinor), 1 - fund.fraction)
     }
 
     // MARK: - Steps
 
-    /// Only a guest sees a step row: someone signed in has just the amount and
-    /// the pledge, with nothing to count.
-    var showsSteps: Bool {
-        makeSignIn != nil
-    }
-
-    /// A guest sees Sign in for the whole sheet, even after signing in, so the
-    /// row never jumps.
     var stepTitles: [String] {
-        makeSignIn == nil
+        !showsSteps
             ? [String(localized: "Amount"), String(localized: "Pledge")]
             : [
                 String(localized: "Amount"),
@@ -180,7 +198,7 @@ final class GiveViewModel: Identifiable {
     /// Continue on the amount: a guest signs in first, anyone else saves the pledge.
     func continueTapped() async {
         guard step == .amount, !isSending else { return }
-        if let makeSignIn, !hasSignedIn {
+        if let makeSignIn, needsSignIn() {
             let attempt = UUID()
             signInAttempt = attempt
             signIn = makeSignIn(
@@ -192,6 +210,12 @@ final class GiveViewModel: Identifiable {
         } else {
             await savePledge()
         }
+    }
+
+    /// The sheet went away: a sign-in still out no longer goes on to save.
+    func close() {
+        isClosed = true
+        signInAttempt = nil
     }
 
     /// Back or Cancel on the sign-in step: the amount stays as it was.
@@ -209,13 +233,12 @@ final class GiveViewModel: Identifiable {
                 .joined(separator: " "),
             detail: ministry.name,
             imageURL: ministry.heroURL,
-            purpose: .give(steps: stepTitles)
+            purpose: .give(steps: showsSteps ? stepTitles : nil)
         )
     }
 
     private func signedIn() async {
-        guard step == .signIn else { return }
-        hasSignedIn = true
+        guard step == .signIn, !isClosed else { return }
         signInAttempt = nil
         signIn = nil
         step = .amount
@@ -224,14 +247,10 @@ final class GiveViewModel: Identifiable {
 
     /// Saves the pledge once, even if Continue is tapped twice.
     private func savePledge() async {
-        guard !isSending, step == .amount else { return }
+        guard !isSending, step == .amount, !isClosed else { return }
         guard isOnline else {
             toast = .info(String(localized: "Connect to the internet to save your pledge."))
             return
-        }
-        if keyedGift != gift {
-            idempotencyKey = UUID().uuidString
-            keyedGift = gift
         }
         isSending = true
         defer { isSending = false }
@@ -243,6 +262,7 @@ final class GiveViewModel: Identifiable {
             )
             step = .pledge
         } catch {
+            report(error, context: "Saving a pledge")
             toast = .error(String(localized: "Couldn't save your pledge. Try again."))
         }
     }
@@ -259,26 +279,54 @@ final class GiveViewModel: Identifiable {
         do {
             try await api.markGiftSent(
                 reference: pledge.reference,
-                remindMonthly: frequency == .monthly && remindMonthly
+                remindMonthly: pledge.gift.frequency == .monthly && remindMonthly
             )
             step = .thanks
         } catch {
+            report(error, context: "Saying a gift was sent")
             toast = .error(String(localized: "Couldn't save. Try again."))
+        }
+    }
+
+    /// Logs a failure, and reports a reply the app can't read: that's a bug,
+    /// not the person's problem.
+    private func report(_ error: any Error, context: String) {
+        guard !error.isOffline else { return }
+        AppLog.network
+            .error(
+                "\(context, privacy: .public) failed: \(AppLog.summary(error), privacy: .public)"
+            )
+        if let error = error as? NetworkError, case .decoding = error {
+            reporter.record(error, context: context)
         }
     }
 
     // MARK: - Copy
 
+    /// The gift the pledge screens show: the one the server saved.
+    var savedGift: Gift {
+        pledge?.gift ?? gift
+    }
+
+    private var savedLabel: String {
+        let amount = savedGift.amount.formatted
+        switch savedGift.frequency {
+        case .monthly: return String(localized: "\(amount) a month")
+        case .yearly: return String(localized: "\(amount) a year")
+        case .once: return amount
+        }
+    }
+
     /// "Your pledge is saved. It starts when we get your first ₱800."
     var pledgeLead: String {
-        frequency == .once
+        savedGift.frequency == .once
             ?
             String(
-                localized: "Your pledge is saved. We'll confirm it when we get your \(gift.amount.formatted)."
+                localized: "Your pledge is saved. We'll confirm it when we get your \(savedGift.amount.formatted)."
             )
             :
             String(
-                localized: "Your pledge is saved. It starts when we get your first \(gift.amount.formatted)."
+                localized: "Your pledge is saved. It starts when we get your first \(savedGift.amount.formatted)."
             )
     }
 
@@ -289,7 +337,7 @@ final class GiveViewModel: Identifiable {
     }
 
     var thanksMessage: String {
-        let gift = [gift.amount.formatted, frequencyLabel].compactMap(\.self).joined(separator: " ")
+        let gift = savedLabel
         if ministry.kind == .school {
             let place = ministry.place.map { String(localized: " in \($0)") } ?? ""
             return String(localized: """
@@ -303,8 +351,8 @@ final class GiveViewModel: Identifiable {
     }
 
     var waitingLine: String {
-        frequency == .once
-            ? String(localized: "Waiting for your \(gift.amount.formatted).")
-            : String(localized: "Waiting for your first \(gift.amount.formatted).")
+        savedGift.frequency == .once
+            ? String(localized: "Waiting for your \(savedGift.amount.formatted).")
+            : String(localized: "Waiting for your first \(savedGift.amount.formatted).")
     }
 }

@@ -90,6 +90,34 @@ final class MinistryMapperTests: XCTestCase {
         XCTAssertEqual(fund?.fraction ?? 0, 0.6, accuracy: 0.0001)
     }
 
+    func testModel_WhenAFundMixesCurrencies_ShouldDropWhatCantBeAdded() {
+        // Arrange
+        let money = { (pesos: Int, currency: String) in
+            EventDTO.MoneyDTO(amountMinor: pesos * 100, currency: currency)
+        }
+        var mixedTotals = dto(kind: "school")
+        mixedTotals.fund = .init(
+            kidsPaid: 1,
+            kidsGoal: 2,
+            raised: money(96000, "PHP"),
+            goal: money(3000, "USD")
+        )
+        var mixedCosts = dto(kind: "school")
+        mixedCosts.fund = .init(kidsPaid: 1, kidsGoal: 2, goal: money(160_000, "PHP"), costs: [
+            .init(title: "School fees", amount: money(450, "PHP")),
+            .init(title: "Books", amount: money(5, "USD")),
+        ])
+
+        // Act
+        let totals = MinistryMapper().model(from: mixedTotals)?.fund
+        let costs = MinistryMapper().model(from: mixedCosts)?.fund
+
+        // Assert
+        XCTAssertNil(totals?.raised)
+        XCTAssertNil(totals?.goal)
+        XCTAssertEqual(costs?.costs.map(\.title), ["School fees"])
+    }
+
     private func dto(kind: String? = nil) -> MinistryDTO {
         MinistryDTO(id: "m", name: "Ministry", kind: kind)
     }

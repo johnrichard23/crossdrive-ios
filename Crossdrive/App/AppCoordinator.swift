@@ -155,9 +155,10 @@ final class AppCoordinator {
     }
 
     /// The sign-in screen as a step inside another sheet (giving), for a guest
-    /// who picked an amount first. If the person left that step while the
-    /// request was out, the session it made is dropped, as the login gate does;
-    /// otherwise `then` runs once the sign-in has worked.
+    /// who picked an amount first. `then` runs once the sign-in has worked. If
+    /// the person left that step while the request was out, nothing carries on.
+    /// The session stays: they did sign in, and signing out here could end a
+    /// newer sign-in made in the meantime.
     func signInStep(
         reminder: GateTrip,
         isWanted: @escaping @MainActor () -> Bool,
@@ -187,7 +188,6 @@ final class AppCoordinator {
         then: @MainActor () async -> Void
     ) async throws {
         guard isWanted() else {
-            await signOut()
             throw CancellationError()
         }
         apply(.signedIn(user))

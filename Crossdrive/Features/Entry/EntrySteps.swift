@@ -8,7 +8,7 @@ struct EntryEmailStep: View {
     let onCancel: () -> Void
 
     private var title: LocalizedStringKey {
-        if viewModel.givingSteps != nil {
+        if viewModel.isGiving {
             return "Sign in to save your pledge"
         }
         return viewModel.trip == nil ? "Sign in" : "Sign in to join the trip"
@@ -207,7 +207,7 @@ struct EntryCreateStep: View {
         ) {
             EntryHeading(
                 title: "Create your account",
-                message: viewModel.givingSteps == nil
+                message: !viewModel.isGiving
                     ? Text(
                         """
                         We'll make an account for \(emailText). \
@@ -356,7 +356,7 @@ struct EntryCheckEmailStep: View {
         EntryScaffold(onCancel: onCancel) {
             EntryHeading(
                 title: "Check your email",
-                message: viewModel.givingSteps == nil
+                message: !viewModel.isGiving
                     ? Text(
                         """
                         We sent a link to \(emailText). \

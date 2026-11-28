@@ -29,6 +29,8 @@ struct GiveAmountStep: View {
                 schoolCard(fund)
             }
         }
+        // What is on screen is what is sent: nothing changes while it sends.
+        .disabled(viewModel.isSending)
         .sensoryFeedback(.selection, trigger: viewModel.pesos)
         .alert("Your gift", isPresented: $isChanging) {
             TextField("Amount in pesos", text: $customText)
@@ -156,7 +158,8 @@ struct GivePledgeStep: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(viewModel.gift.frequency == .once ? "Send your gift" : "Send your first gift")
+                Text(viewModel.savedGift
+                    .frequency == .once ? "Send your gift" : "Send your first gift")
                     .textRole(.title1, emphasized: true)
                     .accessibilityAddTraits(.isHeader)
                 Text(viewModel.pledgeLead)
@@ -166,8 +169,9 @@ struct GivePledgeStep: View {
             if let pledge = viewModel.pledge {
                 slip(pledge)
             }
-            if viewModel.gift.frequency == .monthly {
+            if viewModel.savedGift.frequency == .monthly {
                 Toggle("Remind me each month", isOn: $viewModel.remindMonthly)
+                    .disabled(viewModel.isSending)
                     .textRole(.callout)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
@@ -217,7 +221,7 @@ struct GivePledgeStep: View {
     }
 
     @ViewBuilder private func sendRow(_ pledge: Pledge) -> some View {
-        let amount = viewModel.gift.amount.formatted
+        let amount = viewModel.savedGift.amount.formatted
         if viewModel.paysByBank, let bank = pledge.bank {
             row(
                 number: 1,

@@ -84,18 +84,22 @@ struct MainTabView: View {
         }
     }
 
-    /// The giving sheet's model. A guest signs in as one of its steps.
+    /// The giving sheet's model. A guest signs in as one of its steps; whether
+    /// that is needed is asked again on each Continue.
     private func giveViewModel(for ministry: Ministry) -> GiveViewModel {
         let coordinator = coordinator
-        let signIn: GiveViewModel.SignInMaker? = coordinator.needsSignIn
-            ? { reminder, isWanted, then in
-                coordinator.signInStep(reminder: reminder, isWanted: isWanted, then: then)
-            }
-            : nil
+        let signIn: GiveViewModel.SignInMaker? =
+            coordinator.container.features.authentication == .optional
+                ? { reminder, isWanted, then in
+                    coordinator.signInStep(reminder: reminder, isWanted: isWanted, then: then)
+                }
+                : nil
         return GiveViewModel(
             ministry: ministry,
             api: coordinator.container.ministriesAPI,
+            reporter: coordinator.container.services.crashReporter,
             userName: { coordinator.session.user?.name },
+            needsSignIn: { coordinator.needsSignIn },
             makeSignIn: signIn
         )
     }

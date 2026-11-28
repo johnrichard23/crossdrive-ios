@@ -3,8 +3,9 @@ import Foundation
 
 extension MinistriesAPI {
     /// `POST /ministries/{id}/pledges` (signed in): saves a pledge and returns
-    /// its reference and where to send the money. The same `idempotencyKey` on a
-    /// retry after a timeout never saves it twice. The app never takes a payment.
+    /// the gift it saved, its reference and where to send the money. The same
+    /// `idempotencyKey` on a retry after a timeout never saves it twice; the
+    /// server answers with the pledge it first saved. The app never takes a payment.
     func pledge(
         _ gift: Gift,
         ministry: Ministry.ID,
@@ -27,8 +28,16 @@ extension MinistriesAPI {
         let bank = reply.bankName.flatMap { name in
             reply.bankAccount.map { Pledge.Bank(name: name, account: $0) }
         }
+        let saved = reply.amountMinor.map { minor in
+            Gift(
+                frequency: reply.frequency.flatMap(Gift.Frequency.init(rawValue:)) ?? gift
+                    .frequency,
+                pesos: minor / 100
+            )
+        }
         return Pledge(
             reference: reference,
+            gift: saved ?? gift,
             gcashNumber: gcash,
             accountName: reply.accountName ?? "CrossDrive Missions",
             bank: bank
@@ -59,6 +68,8 @@ private struct SentBody: Encodable {
 
 private struct PledgeReplyDTO: Decodable {
     var reference: String?
+    var frequency: String?
+    var amountMinor: Int?
     var gcashNumber: String?
     var accountName: String?
     var bankName: String?

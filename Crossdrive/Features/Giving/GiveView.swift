@@ -29,10 +29,12 @@ struct GiveView: View {
         }
         .animation(DesignSystem.Motion.enter, value: viewModel.step)
         .dsToast($viewModel.toast)
-        .interactiveDismissDisabled(viewModel.isSending)
+        // Not while saving or signing in: either one would carry on unseen.
+        .interactiveDismissDisabled(viewModel.isSending || viewModel.signIn?.isSubmitting == true)
         // The reference and the payment numbers stay out of the app switcher.
         .privacyCover()
         .onAppear { viewModel.isOnline = isOnline }
+        .onDisappear { viewModel.close() }
         .onChange(of: isOnline) { _, isOnline in viewModel.isOnline = isOnline }
     }
 

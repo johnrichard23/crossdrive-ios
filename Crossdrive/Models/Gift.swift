@@ -16,9 +16,13 @@ struct Gift: Hashable, Sendable {
     }
 }
 
-/// A saved pledge: the reference to type in the payment message, and where to send it.
+/// A saved pledge: the gift the server saved, the reference to type in the
+/// payment message, and where to send it.
 struct Pledge: Hashable, Sendable {
     let reference: String
+    /// What the server saved. A retry after a timeout can be answered with the
+    /// pledge first saved, so this, not what is on screen, is what to send.
+    var gift: Gift
     var gcashNumber: String
     var accountName: String
     /// `nil` when the server offers no bank transfer.
