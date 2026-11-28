@@ -284,6 +284,9 @@ enum SampleStub {
         if endpoint.path.hasSuffix("/registrations") {
             return registrationReply(for: endpoint)
         }
+        if endpoint.path.hasSuffix("/pledges") {
+            return .json(pledgeJSON)
+        }
         return .json("{}")
     }
 

@@ -72,6 +72,14 @@ final class EntryViewModel {
         self.signInWithSocial = signInWithSocial
     }
 
+    /// The giving sheet's step row, when this sign-in is a step of giving.
+    var givingSteps: [String]? {
+        if case let .give(steps) = trip?.purpose {
+            return steps
+        }
+        return nil
+    }
+
     /// The email without the spaces around it.
     var trimmedEmail: String {
         email.trimmingCharacters(in: .whitespacesAndNewlines)

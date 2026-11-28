@@ -60,6 +60,36 @@ final class MinistryMapperTests: XCTestCase {
         }
     }
 
+    func testModel_WhenAFundHasCosts_ShouldKeepOnlyTheReadableOnes() {
+        // Arrange
+        let peso = { (pesos: Int?) in EventDTO.MoneyDTO(
+            amountMinor: pesos.map { $0 * 100 },
+            currency: "PHP"
+        ) }
+        var input = dto(kind: "school")
+        input.fund = .init(
+            kidsPaid: 12,
+            kidsGoal: 20,
+            raised: peso(96000),
+            goal: peso(160_000),
+            costs: [
+                .init(title: "School fees", amount: peso(450)),
+                .init(title: "", amount: peso(250)),
+                .init(title: "Notebooks", amount: peso(nil)),
+                .init(title: "Free", amount: peso(0)),
+            ]
+        )
+
+        // Act
+        let fund = MinistryMapper().model(from: input)?.fund
+
+        // Assert
+        XCTAssertEqual(fund?.costs.map(\.title), ["School fees"])
+        XCTAssertEqual(fund?.kidMonthMinor, 45000)
+        XCTAssertEqual(fund?.toGo?.amountMinor, 6_400_000)
+        XCTAssertEqual(fund?.fraction ?? 0, 0.6, accuracy: 0.0001)
+    }
+
     private func dto(kind: String? = nil) -> MinistryDTO {
         MinistryDTO(id: "m", name: "Ministry", kind: kind)
     }

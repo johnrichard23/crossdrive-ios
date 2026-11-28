@@ -149,6 +149,51 @@ final class AppCoordinator {
         pendingAction = nil
     }
 
+    /// Whether a guest must sign in before an action that needs an account.
+    var needsSignIn: Bool {
+        container.features.authentication == .optional && session == .signedOut
+    }
+
+    /// The sign-in screen as a step inside another sheet (giving), for a guest
+    /// who picked an amount first. If the person left that step while the
+    /// request was out, the session it made is dropped, as the login gate does;
+    /// otherwise `then` runs once the sign-in has worked.
+    func signInStep(
+        reminder: GateTrip,
+        isWanted: @escaping @MainActor () -> Bool,
+        then: @escaping @MainActor () async -> Void
+    ) -> EntryViewModel {
+        EntryViewModel(
+            trip: reminder,
+            accountAPI: container.accountAPI,
+            imageLoader: container.imageLoader,
+            facebook: container.services.facebook,
+            signIn: { [weak self] credentials in
+                guard let self else { return }
+                let user = try await container.session.signIn(credentials)
+                try await finishStepSignIn(user, isWanted: isWanted, then: then)
+            },
+            signInWithSocial: { [weak self] credential in
+                guard let self else { return }
+                let user = try await container.session.signIn(with: credential)
+                try await finishStepSignIn(user, isWanted: isWanted, then: then)
+            }
+        )
+    }
+
+    private func finishStepSignIn(
+        _ user: AppUser,
+        isWanted: @MainActor () -> Bool,
+        then: @MainActor () async -> Void
+    ) async throws {
+        guard isWanted() else {
+            await signOut()
+            throw CancellationError()
+        }
+        apply(.signedIn(user))
+        await then()
+    }
+
     func signIn(_ credentials: Credentials) async throws {
         let user = try await container.session.signIn(credentials)
         apply(.signedIn(user))

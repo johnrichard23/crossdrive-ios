@@ -73,6 +73,8 @@ struct MinistryPhotoGrid: View {
 /// paid for this year, and a Give button.
 struct MinistryFundCard: View {
     let ministry: Ministry
+    /// Opens the giving sheet.
+    let onGive: (Ministry) -> Void
 
     @Environment(\.theme) private var theme
     @ScaledMetric(relativeTo: .body) private var photoHeight: CGFloat = 190
@@ -109,12 +111,9 @@ struct MinistryFundCard: View {
             .buttonStyle(.plain)
             .accessibilityElement(children: .combine)
 
-            // shortcut: opens the fund's page until the giving steps are built.
-            NavigationLink(value: MinistriesRoute.detail(ministry.id)) {
-                Text("Give to the school fund")
-            }
-            .buttonStyle(.ds(.primary, size: .regular))
-            .padding(16)
+            Button("Give to the school fund") { onGive(ministry) }
+                .buttonStyle(.ds(.primary, size: .regular))
+                .padding(16)
         }
         .background(theme.surface, in: DesignSystem.Radius.shape(20))
         .clipShape(DesignSystem.Radius.shape(20))

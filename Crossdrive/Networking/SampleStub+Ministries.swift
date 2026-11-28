@@ -29,6 +29,13 @@ extension SampleStub {
         return .json(text)
     }
 
+    /// A saved pledge. The payment details are placeholders until CrossDrive
+    /// sends its real GCash and bank numbers.
+    static let pledgeJSON = """
+    {"reference": "CD-0142", "gcashNumber": "0917 123 4567", "accountName": "CrossDrive Missions",
+     "bankName": "BPI", "bankAccount": "1234 5678 90"}
+    """
+
     static var ministriesJSON: String {
         #"""
         [
@@ -46,8 +53,17 @@ extension SampleStub {
            "summary": "We visit a community each week and study the Bible in their place.",
            "photos": ["\#(photo(meal))", "\#(photo(families, width: 400))", "\#(photo(bible, width: 400))"]},
           {"id": "school-fund", "kind": "school", "name": "School fund", "schedule": "Every month",
+           "place": "Gatbo and Bacon",
            "summary": "Your gift pays school fees, jeepney fare and notebooks for kids in Gatbo and Bacon.",
-           "imageURL": "\#(photo(13_040_204, width: 800))", "fund": {"kidsPaid": 12, "kidsGoal": 20}},
+           "imageURL": "\#(photo(13_040_204, width: 800))",
+           "fund": {"kidsPaid": 12, "kidsGoal": 20,
+                    "raised": {"amountMinor": 9600000, "currency": "PHP"},
+                    "goal": {"amountMinor": 16000000, "currency": "PHP"},
+                    "costs": [
+                      {"title": "School fees", "amount": {"amountMinor": 45000, "currency": "PHP"}},
+                      {"title": "Jeepney fare to school", "amount": {"amountMinor": 25000, "currency": "PHP"}},
+                      {"title": "Notebooks and pens", "amount": {"amountMinor": 10000, "currency": "PHP"}}
+                    ]}},
           {"id": "farming", "kind": "skill", "name": "Farming", "partner": "Bro. Jonathan & family",
            "summary": "Grow food for the family.", "imageURL": "\#(photo(7_658_774))"},
           {"id": "crochet", "kind": "skill", "name": "Crochet", "partner": "Studio_rae",
