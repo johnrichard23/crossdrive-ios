@@ -72,6 +72,22 @@ final class EntryViewModel {
         self.signInWithSocial = signInWithSocial
     }
 
+    /// Whether this sign-in is a step of giving, for its words.
+    var isGiving: Bool {
+        if case .give = trip?.purpose {
+            return true
+        }
+        return false
+    }
+
+    /// The giving sheet's step row, when it shows one.
+    var givingSteps: [String]? {
+        if case let .give(steps) = trip?.purpose {
+            return steps
+        }
+        return nil
+    }
+
     /// The email without the spaces around it.
     var trimmedEmail: String {
         email.trimmingCharacters(in: .whitespacesAndNewlines)

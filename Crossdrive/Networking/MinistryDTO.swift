@@ -4,6 +4,14 @@ struct MinistryDTO: Codable, Sendable {
     struct FundDTO: Codable, Sendable {
         var kidsPaid: Int?
         var kidsGoal: Int?
+        var raised: EventDTO.MoneyDTO?
+        var goal: EventDTO.MoneyDTO?
+        var costs: [CostDTO]?
+    }
+
+    struct CostDTO: Codable, Sendable {
+        var title: String?
+        var amount: EventDTO.MoneyDTO?
     }
 
     var id: String?

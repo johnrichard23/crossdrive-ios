@@ -34,7 +34,7 @@ struct MinistriesSkeleton: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             ForEach(MinistrySection.sections(from: Ministry.placeholders, showing: nil)) {
-                MinistrySectionView(section: $0)
+                MinistrySectionView(section: $0, onGive: { _ in })
             }
         }
         // Grey and faint: card colours would read as real content.

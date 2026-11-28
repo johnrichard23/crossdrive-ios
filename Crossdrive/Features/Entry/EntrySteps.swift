@@ -7,6 +7,13 @@ struct EntryEmailStep: View {
     @Bindable var viewModel: EntryViewModel
     let onCancel: () -> Void
 
+    private var title: LocalizedStringKey {
+        if viewModel.isGiving {
+            return "Sign in to save your pledge"
+        }
+        return viewModel.trip == nil ? "Sign in" : "Sign in to join the trip"
+    }
+
     @FocusState private var emailFocused: Bool
     @State private var emailShakes = 0
 
@@ -14,8 +21,11 @@ struct EntryEmailStep: View {
 
     var body: some View {
         EntryScaffold(focusedID: emailFocused ? "email" : nil, onCancel: onCancel) {
+            if let steps = viewModel.givingSteps {
+                CDStepRow(titles: steps, current: 1).padding(.bottom, 20)
+            }
             EntryHeading(
-                title: viewModel.trip == nil ? "Sign in" : "Sign in to join the trip",
+                title: title,
                 message: viewModel.canUseFacebook
                     ? Text("Enter your email, or use Apple or Facebook.")
                     : Text("Enter your email, or use Apple.")
@@ -197,12 +207,19 @@ struct EntryCreateStep: View {
         ) {
             EntryHeading(
                 title: "Create your account",
-                message: Text(
-                    """
-                    We'll make an account for \(emailText). \
-                    Two more things, then you're back to joining the trip.
-                    """
-                )
+                message: !viewModel.isGiving
+                    ? Text(
+                        """
+                        We'll make an account for \(emailText). \
+                        Two more things, then you're back to joining the trip.
+                        """
+                    )
+                    : Text(
+                        """
+                        We'll make an account for \(emailText). \
+                        Two more things, then you're back to your pledge.
+                        """
+                    )
             )
             if let message = viewModel.formError {
                 EntryStatusLine(systemImage: "exclamationmark.circle", text: message, isError: true)
@@ -339,12 +356,19 @@ struct EntryCheckEmailStep: View {
         EntryScaffold(onCancel: onCancel) {
             EntryHeading(
                 title: "Check your email",
-                message: Text(
-                    """
-                    We sent a link to \(emailText). \
-                    Open it on this phone to finish, then you're back to joining the trip.
-                    """
-                )
+                message: !viewModel.isGiving
+                    ? Text(
+                        """
+                        We sent a link to \(emailText). \
+                        Open it on this phone to finish, then you're back to joining the trip.
+                        """
+                    )
+                    : Text(
+                        """
+                        We sent a link to \(emailText). \
+                        Open it on this phone to finish, then you're back to your pledge.
+                        """
+                    )
             )
             .padding(.top, 52)
             if let message = viewModel.formError {

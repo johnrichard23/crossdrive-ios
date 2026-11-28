@@ -5,6 +5,7 @@ import SwiftUI
 /// row that scrolls sideways (communities, skills) or as cards (the school fund).
 struct MinistrySectionView: View {
     let section: MinistrySection
+    let onGive: (Ministry) -> Void
 
     @Environment(\.theme) private var theme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -33,7 +34,7 @@ struct MinistrySectionView: View {
         switch section.kind {
         case .school:
             VStack(spacing: 12) {
-                ForEach(section.ministries) { MinistryFundCard(ministry: $0) }
+                ForEach(section.ministries) { MinistryFundCard(ministry: $0, onGive: onGive) }
             }
             .screenMargins()
         case .skill:

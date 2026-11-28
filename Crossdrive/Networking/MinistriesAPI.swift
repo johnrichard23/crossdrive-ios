@@ -34,7 +34,7 @@ struct MinistriesAPI: Sendable {
     }
 
     /// A server-supplied id must not be able to add path segments.
-    private static func pathSegment(_ id: String) -> String {
+    static func pathSegment(_ id: String) -> String {
         let allowed = CharacterSet.urlPathAllowed.subtracting(CharacterSet(charactersIn: "/"))
         return id.addingPercentEncoding(withAllowedCharacters: allowed) ?? ""
     }

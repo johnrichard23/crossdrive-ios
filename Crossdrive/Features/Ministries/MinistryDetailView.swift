@@ -3,9 +3,12 @@ import DesignSystem
 import SwiftUI
 
 /// One ministry: a photo, what it is, photos, updates, how to pray, what is
-/// needed, and a pinned Give bar.
+/// needed, and a pinned Give bar. The school fund shows its progress and what
+/// one kid needs instead.
 struct MinistryDetailView: View {
     @State private var viewModel: MinistryDetailViewModel
+    /// Opens the giving sheet.
+    private let onGive: (Ministry) -> Void
     /// The screen's width, known before anything shows, so the top photo can
     /// be made ready at its real size while the skeleton is up.
     @State private var containerWidth: CGFloat = 0
@@ -18,8 +21,9 @@ struct MinistryDetailView: View {
 
     private static let heroHeight: CGFloat = 260
 
-    init(viewModel: MinistryDetailViewModel) {
+    init(viewModel: MinistryDetailViewModel, onGive: @escaping (Ministry) -> Void) {
         _viewModel = State(initialValue: viewModel)
+        self.onGive = onGive
     }
 
     var body: some View {
@@ -139,17 +143,13 @@ struct MinistryDetailView: View {
                 hero(detail.ministry)
                 VStack(alignment: .leading, spacing: 12) {
                     intro(detail.ministry)
-                    if !detail.photos.isEmpty {
-                        MinistryPhotosSection(photos: detail.photos)
-                    }
-                    if !detail.updates.isEmpty {
-                        MinistryUpdatesSection(updates: detail.updates)
-                    }
-                    if let prayer = detail.prayer {
-                        prayerSection(prayer)
-                    }
-                    if let need = detail.need {
-                        needSection(need)
+                    if detail.ministry.kind == .school, let fund = detail.ministry.fund {
+                        MinistryFundProgress(fund: fund)
+                        if !fund.costs.isEmpty {
+                            MinistryFundCosts(costs: fund.costs).padding(.top, 10)
+                        }
+                    } else {
+                        sections(detail)
                     }
                     if dynamicTypeSize.isAccessibilitySize {
                         giveBar(detail.ministry)
@@ -169,6 +169,21 @@ struct MinistryDetailView: View {
                     .background(.regularMaterial)
                     .overlay(alignment: .top) { Rectangle().fill(theme.separator).frame(height: 1) }
             }
+        }
+    }
+
+    @ViewBuilder private func sections(_ detail: MinistryDetail) -> some View {
+        if !detail.photos.isEmpty {
+            MinistryPhotosSection(photos: detail.photos)
+        }
+        if !detail.updates.isEmpty {
+            MinistryUpdatesSection(updates: detail.updates)
+        }
+        if let prayer = detail.prayer {
+            prayerSection(prayer)
+        }
+        if let need = detail.need {
+            needSection(need)
         }
     }
 
@@ -192,8 +207,11 @@ struct MinistryDetailView: View {
     }
 
     private func intro(_ ministry: Ministry) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if let schedule = ministry.schedule {
+        let isFund = ministry.kind == .school
+        return VStack(alignment: .leading, spacing: 12) {
+            if isFund {
+                CDDateStamp(text: String(localized: "This school year"))
+            } else if let schedule = ministry.schedule {
                 CDDateStamp(text: schedule)
             }
             Text(ministry.name)
@@ -204,7 +222,7 @@ struct MinistryDetailView: View {
                     .textRole(.callout)
                     .foregroundStyle(theme.labelSecondary)
             }
-            if let place = ministry.place {
+            if !isFund, let place = ministry.place {
                 CDMetaRow(icon: .mapPin, text: place, role: .callout)
             }
         }
@@ -298,14 +316,7 @@ struct MinistryDetailView: View {
     // MARK: - Give bar
 
     private func giveBar(_ ministry: Ministry) -> some View {
-        Button("Give to \(ministry.name)") {
-            viewModel.toast = .info(String(localized: "Giving in the app is coming soon."))
-        }
-        .buttonStyle(.ds(.primary))
-        .screenMargins()
-        .padding(.top, 14)
-        .padding(.bottom, 8)
-        .frame(maxWidth: .infinity)
+        MinistryGiveBar(ministry: ministry) { onGive(ministry) }
     }
 
     private func sectionHeader(_ title: LocalizedStringKey) -> some View {
@@ -327,7 +338,8 @@ private func previewViewModel(
 }
 
 #Preview("Loaded") {
-    MinistryDetailView(viewModel: previewViewModel(SampleStub.handle)).theme(.crossdrive)
+    MinistryDetailView(viewModel: previewViewModel(SampleStub.handle), onGive: { _ in })
+        .theme(.crossdrive)
 }
 
 #Preview("Loading") {
@@ -335,22 +347,32 @@ private func previewViewModel(
         viewModel: previewViewModel { _ in
             try await Task.sleep(for: .seconds(3600))
             return .json("{}")
-        }
+        },
+        onGive: { _ in }
     )
     .theme(.crossdrive)
 }
 
 #Preview("Not available") {
-    MinistryDetailView(viewModel: previewViewModel { _ in .json("{}", status: 404) })
-        .theme(.crossdrive)
+    MinistryDetailView(
+        viewModel: previewViewModel { _ in .json("{}", status: 404) },
+        onGive: { _ in }
+    )
+    .theme(.crossdrive)
 }
 
 #Preview("Error") {
-    MinistryDetailView(viewModel: previewViewModel { _ in .json("{}", status: 500) })
-        .theme(.crossdrive)
+    MinistryDetailView(
+        viewModel: previewViewModel { _ in .json("{}", status: 500) },
+        onGive: { _ in }
+    )
+    .theme(.crossdrive)
 }
 
 #Preview("Offline") {
-    MinistryDetailView(viewModel: previewViewModel { _ in throw NetworkError.noConnection })
-        .theme(.crossdrive)
+    MinistryDetailView(
+        viewModel: previewViewModel { _ in throw NetworkError.noConnection },
+        onGive: { _ in }
+    )
+    .theme(.crossdrive)
 }

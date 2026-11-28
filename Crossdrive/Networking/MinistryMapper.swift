@@ -22,9 +22,34 @@ struct MinistryMapper: Sendable {
     }
 
     /// A fund needs a goal; more kids paid for than the goal reads as the goal.
+    /// Amounts and costs that can't be read are left out, and so is anything not
+    /// in the fund's currency: sums across currencies would be wrong.
     private func fund(from dto: MinistryDTO.FundDTO) -> Ministry.Fund? {
         guard let goal = dto.kidsGoal, goal > 0 else { return nil }
-        return Ministry.Fund(kidsPaid: min(max(dto.kidsPaid ?? 0, 0), goal), kidsGoal: goal)
+        let events = EventMapper()
+        var raised = dto.raised.flatMap(events.money)
+        var goalMoney = dto.goal.flatMap(events.money)
+        let isMixed = raised != nil && goalMoney != nil && raised?.currency != goalMoney?.currency
+        if isMixed {
+            raised = nil
+            goalMoney = nil
+        }
+        var costs = (dto.costs ?? []).compactMap { cost -> MinistryFundCost? in
+            guard let title = cost.title, !title.isEmpty,
+                  let amount = cost.amount.flatMap(events.money), amount.amountMinor > 0
+            else { return nil }
+            return MinistryFundCost(title: title, amount: amount)
+        }
+        if let currency = goalMoney?.currency ?? raised?.currency ?? costs.first?.amount.currency {
+            costs = costs.filter { $0.amount.currency == currency }
+        }
+        return Ministry.Fund(
+            kidsPaid: min(max(dto.kidsPaid ?? 0, 0), goal),
+            kidsGoal: goal,
+            raised: raised,
+            goal: goalMoney,
+            costs: costs
+        )
     }
 
     func models(from dtos: [MinistryDTO]) -> [Ministry] {

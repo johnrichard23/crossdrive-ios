@@ -8,6 +8,8 @@ struct MinistriesView: View {
     @State private var viewModel: MinistriesViewModel
     @Binding private var path: [MinistriesRoute]
     private let makeDetail: (Ministry.ID) -> MinistryDetailViewModel
+    private let makeGive: (Ministry) -> GiveViewModel
+    @State private var giving: GiveViewModel?
 
     @Environment(\.theme) private var theme
     @Environment(\.isOnline) private var isOnline
@@ -16,11 +18,13 @@ struct MinistriesView: View {
     init(
         viewModel: MinistriesViewModel,
         path: Binding<[MinistriesRoute]>,
-        makeDetail: @escaping (Ministry.ID) -> MinistryDetailViewModel
+        makeDetail: @escaping (Ministry.ID) -> MinistryDetailViewModel,
+        makeGive: @escaping (Ministry) -> GiveViewModel
     ) {
         _viewModel = State(initialValue: viewModel)
         _path = path
         self.makeDetail = makeDetail
+        self.makeGive = makeGive
     }
 
     var body: some View {
@@ -38,9 +42,12 @@ struct MinistriesView: View {
             .navigationDestination(for: MinistriesRoute.self) { route in
                 switch route {
                 case let .detail(id):
-                    MinistryDetailView(viewModel: makeDetail(id))
+                    MinistryDetailView(viewModel: makeDetail(id), onGive: give)
                 }
             }
+        }
+        .sheet(item: $giving) { model in
+            GiveView(viewModel: model) { giving = nil }
         }
         .dsToast($viewModel.toast)
         .task { await viewModel.load() }
@@ -87,12 +94,16 @@ struct MinistriesView: View {
                     chips
                 }
                 ForEach(viewModel.sections) { section in
-                    MinistrySectionView(section: section)
+                    MinistrySectionView(section: section, onGive: give)
                 }
             }
             .padding(.bottom, theme.spacing.groupGap)
         }
         .refreshable { await viewModel.load(forceReload: true) }
+    }
+
+    private func give(_ ministry: Ministry) {
+        giving = makeGive(ministry)
     }
 
     /// All, then one chip per kind on the list.
@@ -145,6 +156,13 @@ private func previewScreen(_ viewModel: MinistriesViewModel) -> some View {
                 api: MinistriesAPI(client: StubHTTPClient(SampleStub.handle)),
                 ministryID: id,
                 imageLoader: URLSessionImageLoader()
+            )
+        },
+        makeGive: { ministry in
+            GiveViewModel(
+                ministry: ministry,
+                api: MinistriesAPI(client: StubHTTPClient(SampleStub.handle)),
+                userName: { nil }
             )
         }
     )
